@@ -114,55 +114,53 @@ To prevent misuse and ensures fair, need-based payout, we use a dual-layer check
 
     
 
-6\. 🚨 Crisis Management: The Market Crash Protocol
+6\. 🚨 Crisis Management: The Market Crash Protocol on server side
 ---------------------------------------------------
 
-_The Crisis: A sudden macro-economic market crash wipes out gig platform order volumes, threatening rider livelihoods and straining insurer liquidity._
+Standard parametric insurance only looks at the weather. RiskWire looks at the economy. If our Python ML Oracle detects a catastrophic macro-drop in aggregator order volumes (e.g., >70% drop across Swiggy/Zepto APIs), it triggers the **Dynamic Solvency Protocol** inside Guidewire.
 
-RiskWire shifts fraud control from passive validation to active verification under stress conditions. We rely on **Proof of Work, Not Proof of Location**.
-
-*   **Behavioral DNA Layer:** Each rider gets a longitudinal profile mapping typical working windows, route styles, and order handling cadences. Fraud risk rises when we observe abrupt "personality shifts."
+*   **Macro-API Monitoring:** We do not rely on individual behavioral tracking. We monitor the macro health of the platforms. If the platform itself crashes, the disruption is verified system-wide.
     
-*   **Confidence-Based Payout Splitting:** To protect honest workers while limiting liquidity drain, payouts are tiered: High confidence gets 100% instant payout; Medium confidence gets 60% instant + 40% delayed; Low confidence triggers a small advance + investigation flow.
+*   **Pro-Tier Lock & Liquidity Shift:** To prevent the insurer from going bankrupt during a mass-market crash, GWCP temporarily locks the purchase of new 'Pro' and 'Standard' tier policies. All active liquidity is dynamically shifted to subsidize the 'Basic' survival tier.
     
-*   **Fraud-Resistant Liquidity Design (Circuit Breaker):** When detecting a market-crash fraud wave, the system temporarily reduces instant payout ratios and raises verification thresholds. This has a time-bounded activation (auto-reverting unless manually re-authorized), explicit revert criteria, and full auditability in the Admin dashboard.
-    
+*   **The Zero-Delay Guarantee:** While other systems implement "circuit breakers" that delay 40% of a worker's payout during a crisis, RiskWire guarantees 100% instant execution of the Basic tier. This ensures the absolute maximum number of vulnerable workers receive a baseline, minimum-wage survival payout immediately, without breaking the insurer's reserve pool.
 
 
 
-7\. 🛡️ Adversarial Defense: Zero-Trust Anti-Spoofing
+7\. 🚨 Crisis Management: The Market Crash Protocol on Client Side
 -----------------------------------------------------
 
-The Crisis: Coordinated fraud using Fake GPS + VPNs involving 500-device syndicates triggering fake payouts. Standard GPS (Lat, Lon) is easily spoofed.
+_The Crisis: Coordinated 500-device syndicates using Fake GPS + VPNs to trigger fake payouts from their bedrooms._
 
-RiskWire utilizes Behavioral Risk Analysis & Adversarial Defense via an Anomaly Detection - Isolation Forest model.
+Standard GPS (Lat, Lon) is mathematically compromised. RiskWire protects Guidewire ClaimCenter using a **Multi-Layered Spatial ML & Hardware Verification Framework**.
 
-### A. GPS Spoofing Defense
+### A. Hardware-Backed Verification (Google Play Integrity API)
 
-*   **OS-level mock detection:** Checking Location.isMock() rejects injected coordinates instantly.
-    
-*   **Dead Metadata Traps:** If Speed = 0.0000 and Altitude = 0.0, the system flags synthetic (non-realistic) data.
+*   **Device & App Integrity:** Before a claim is even evaluated by ClaimCenter, RiskWire calls the **Google Play Integrity API** (the modern, hardware-backed replacement for SafetyNet). This provides cryptographic proof that our Jutro-based mobile app is running on a genuine, unmodified Android device. It instantly blocks any claims originating from Android emulators, rooted devices, or modified app versions used by fraud syndicates.
     
 
-### B. VPN & Syndicate Detection
+### B. Defeating the Geo-Location Spoofer
 
-*   **ASN Check:** Detects datacenter IPs (e.g., AWS vs telecom like Jio).
+Fraudsters use developer settings to inject fake coordinates. We catch them at the Operating System layer:
+
+*   **OS-Level Mock Detection:** When our app requests location, we interrogate the OS metadata (Location.isMock()). If this API returns true, it is undeniable proof the coordinates were injected by third-party software, and the claim is instantly rejected.
     
-*   **RTT (Latency) Check:** High latency vs local GPS = mismatch.
-    
-*   **BSSID Clustering:** Multiple users sharing same Wi-Fi indicates a fraud ring.
+*   **"Dead Metadata" Traps:** Fake GPS apps lazily inject Lat/Lon but leave metadata blank. If a claim packet arrives with a speed of exactly 0.0000 and an altitude of exactly 0.0, the system flags it as synthetic (real-world physical GPS data is never mathematically perfect).
     
 
-### C. Shelter-in-Place Exception (Time-Series Kinematic)
+### C. Defeating the VPN Proxy & Fraud Rings
 
-By performing time-series kinematic heartrate & noise analysis, we ensure an honest rider who takes shelter during a storm isn't penalized. If they were active right before the trigger, the Automated Contract approves the payout.
+If a user spoofs their GPS to Chennai, they will use a VPN to spoof their IP address to Chennai. We defeat this using Network Physics:
+
+*   **The ASN Check (Telecom vs. Datacenter):** A genuine rider uses a mobile telecom network. VPNs route traffic through commercial server farms. We check the Autonomous System Number (ASN). If the IP belongs to a datacenter (e.g., AWS, NordVPN) instead of a local telecom provider (e.g., Jio, Airtel), it is an instant proxy flag.
+    
+*   **The Speed of Light (RTT Latency):** A VPN adds a massive physical detour to a data packet. If the GPS claims the user is 2 kilometers from our server, but the network Round-Trip Time (RTT) is 250+ milliseconds (typical of a VPN bounce), the temporal mismatch is blocked.
+    
+*   **BSSID Clustering:** We extract the connected Wi-Fi MAC Address. If 50 claims originate from different "GPS locations" but the exact same physical Wi-Fi router hardware, the syndicate is exposed
 
 
 
-
-### ⚙️ System Blueprint & API Contracts (Integration Gateway)
-
-Because RiskWire decouples the core ledger (GWCP) from the heavy machine learning compute, clear API contracts are established via the **Guidewire Integration Gateway**.
+8\. ⚙️ System Blueprint & API Contracts (Integration Gateway)
 
 These are the core microservice endpoints hosted on our external **Python FastAPI Oracle**:
 
@@ -204,7 +202,7 @@ These are the core microservice endpoints hosted on our external **Python FastAP
 
 
 
-8\. GWCP Solution Architecture & Tech Stack
+9\. GWCP Solution Architecture & Tech Stack
 -------------------------------------------
 
 RiskWire is a fully decoupled, scalable, real-time system.
@@ -238,7 +236,7 @@ Integrated with a Python ML Oracle for pricing & fraud detection.
 
 
 
-9\. Phase 1 to 3 Execution Roadmap
+10\. Phase 1 to 3 Execution Roadmap
 ----------------------------------
 
 *   **\[x\] Phase 1: Ideation & Foundation (Seed)  Theme: Ideate & Know Your Delivery Worker**
