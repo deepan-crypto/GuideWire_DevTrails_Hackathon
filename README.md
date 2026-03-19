@@ -23,6 +23,8 @@
 8.  GWCP Solution Architecture & Tech Stack
     
 9.  Phase 1 to 3 Execution Roadmap
+
+
     
 
 1\. The Problem Statement
@@ -36,10 +38,13 @@ Traditional insurance fails them because:
 
 This leads to extreme income instability and severe safety risks.
 
+
+
 2\. The Solution: RiskWire
 --------------------------
 
 RiskWire is an AI-powered, parametric micro-insurance product built natively on the Guidewire Cloud Platform (GWCP) designed for instant support. We are replacing the outdated, manual P&C claims process with an autonomous safety net that protects a rider's earning capacity and pays out instantly when they are forced offline. No paperwork, no delays, no manual intervention. Automatically triggers payouts without manual claims.
+
 
 
 
@@ -50,6 +55,9 @@ Our primary focus is on hyper-local delivery partners (Platforms: Swiggy, Zomato
 
 
 **Why this segment?**Real-time operational data is available, giving clear visibility of work stoppage, which is ideal for precise and fair insurance triggers.
+
+
+
 
 4\. The Guidewire Advantage (Why GWCP?)
 ---------------------------------------
@@ -63,6 +71,8 @@ Traditional insurance cannot scale to the gig economy because of high monthly pr
 *   **Scalable Frontend:** We require an accessible, mobile-first experience for riders operating in high-motion environments.
     
 
+
+
 5\. 🔥 The Innovation Edge (Our USPs)
 -------------------------------------
 
@@ -71,7 +81,7 @@ Traditional insurance cannot scale to the gig economy because of high monthly pr
 RiskWire follows a flexible 3-tier subscription model (e.g., Basic Plan: ₹25/week, Standard Plan: ₹50/week, Pro Plan: ₹100/week). Premiums are adjusted using an AI-based Risk Multiplier. Higher risk zones result in a slightly higher premium, making it affordable, scalable, and user-controlled.
 
 
-### B. Vani AI: Voice-First Multilingual Assistant
+### B. AI Voice-First Multilingual Assistant
 
 Powered by an In-Context RAG Assistant (Gemini), Vani AI feeds policy Q&A directly to the user. It provides:
 
@@ -92,6 +102,8 @@ To prevent misuse and ensures fair, need-based payout, we use a dual-layer check
 *   **Growth:** A referral system for network expansion. Designed for mass adoption in the gig economy.+4
     
 *   **Security:** Strong authentication & identity validation, coupled with spam call detection & avoidance.
+
+
     
 
 6\. 🚨 Crisis Management: The Market Crash Protocol
@@ -107,6 +119,8 @@ RiskWire shifts fraud control from passive validation to active verification und
     
 *   **Fraud-Resistant Liquidity Design (Circuit Breaker):** When detecting a market-crash fraud wave, the system temporarily reduces instant payout ratios and raises verification thresholds. This has a time-bounded activation (auto-reverting unless manually re-authorized), explicit revert criteria, and full auditability in the Admin dashboard.
     
+
+
 
 7\. 🛡️ Adversarial Defense: Zero-Trust Anti-Spoofing
 -----------------------------------------------------
@@ -134,6 +148,51 @@ RiskWire utilizes Behavioral Risk Analysis & Adversarial Defense via an Anomaly 
 ### C. Shelter-in-Place Exception (Time-Series Kinematic)
 
 By performing time-series kinematic heartrate & noise analysis, we ensure an honest rider who takes shelter during a storm isn't penalized. If they were active right before the trigger, the Automated Contract approves the payout.
+
+
+
+
+### ⚙️ System Blueprint & API Contracts (Integration Gateway)
+
+Because RiskWire decouples the core ledger (GWCP) from the heavy machine learning compute, clear API contracts are established via the **Guidewire Integration Gateway**.
+
+These are the core microservice endpoints hosted on our external **Python FastAPI Oracle**:
+
+**1\. The Actuarial Pricing Endpoint (Called by PolicyCenter)**
+
+*   POST /api/v1/oracle/quote-multiplier
+    
+*   **Payload:** { "zone\_id": "Z-401", "rider\_id": "R-992", "tier": "PRO" }
+    
+*   **Function:** PolicyCenter pings this before generating a weekly quote. The Python Oracle runs the Gradient Boosting model against the 5-day weather forecast and returns the dynamic price multiplier (e.g., 1.4x).
+    
+
+
+**2\. The Anti-Spoofing Fraud Endpoint (Called by ClaimCenter)**
+
+*   POST /api/v1/oracle/verify-claim
+    
+*   **Payload:** { "claim\_id": "C-102", "gps\_lat": 13.08, "is\_mock\_flag": false, "network\_rtt\_ms": 45 }
+    
+*   **Function:** Before Autopilot executes a payout, it sends the device telemetry here. The Isolation Forest ML model evaluates the spatial-network data and returns a confidence\_score and a fraud\_flag (True/False).
+    
+
+**3\. The Market Crash Monitor (Called by GWCP Cron Job)**
+
+*   GET /api/v1/oracle/market-health/chennai
+    
+*   **Function:** A scheduled task checks this endpoint hourly. It aggregates data from Swiggy/Zepto mock APIs. If order volumes drop >70%, it triggers the Market Crash Protocol inside Guidewire.
+    
+
+**4\. AI Voice Assistant (Called by Jutro Frontend)**
+
+*   POST /api/v1/vani/ask
+    
+*   **Payload:** { "user\_audio\_blob": "", "language": "ta-IN" }
+    
+*   **Function:** Processes the rider's voice query through Gemini 1.5 Flash (RAG) and returns a strictly scoped, localized audio response regarding their policy.
+
+
 
 
 
@@ -168,6 +227,8 @@ Integrated with a Python ML Oracle for pricing & fraud detection.
     
 *   **Zonal Data ETL Pipeline (PySpark):** Processes aggregated Zonal Metrics and Insured vs. Uninsured Density data.
     
+
+
 
 9\. Phase 1 to 3 Execution Roadmap
 ----------------------------------
