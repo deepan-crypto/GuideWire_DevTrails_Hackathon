@@ -57,7 +57,8 @@ No protection today when storms, pollution alerts, or local shutdowns force them
 
 
 
-**Why this segment?**Real-time operational data is available, giving clear visibility of work stoppage, which is ideal for precise and fair insurance triggers.
+**Why this segment?**
+Real-time operational data is available, giving clear visibility of work stoppage, which is ideal for precise and fair insurance triggers.
 
 Lost income is easy to quantify (orders per hour, hourly wage).
 Disruptions are hyper‑local and instantly visible in platform logs.
