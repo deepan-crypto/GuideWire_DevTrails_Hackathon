@@ -6,21 +6,21 @@
 📖 Table of Contents
 --------------------
 
-1.  [The Mission & The Protection Gap](https://www.google.com/search?q=#1-the-mission--the-protection-gap)
+1.  [The Mission & The Protection Gap]
     
-2.  [Target Persona: Quick-Commerce](https://www.google.com/search?q=#2-target-persona-quick-commerce)
+2.  [Target Persona: Quick-Commerce]
     
-3.  [🔥 The Innovation Edge (Our USPs)](https://www.google.com/search?q=#3--the-innovation-edge-our-usps)
+3.  [🔥 The Innovation Edge (Our USPs)]
     
-4.  [🚨 Crisis Management: The Market Crash Protocol](https://www.google.com/search?q=#4--crisis-management-the-market-crash-protocol)
+4.  [🚨 Crisis Management: The Market Crash Protocol]
     
-5.  [🛡️ Adversarial Defense: Zero-Trust Anti-Spoofing](https://www.google.com/search?q=#5-️-adversarial-defense-zero-trust-anti-spoofing)
+5.  [🛡️ Adversarial Defense: Zero-Trust Anti-Spoofing]
     
-6.  [GWCP Solution Architecture](https://www.google.com/search?q=#6-gwcp-solution-architecture)
+6.  [GWCP Solution Architecture]
     
-7.  [Dual-Validation Parametric Triggers](https://www.google.com/search?q=#7-dual-validation-parametric-triggers)
+7.  [Dual-Validation Parametric Triggers]
     
-8.  [Phase 1 to 3 Execution Roadmap](https://www.google.com/search?q=#8-phase-1-to-3-execution-roadmap)
+8.  [Phase 1 to 3 Execution Roadmap]
     
 
 1\. The Mission & The Protection Gap
@@ -33,9 +33,9 @@ When sudden disruptions hit a tier-1 city—be it a 45°C heatwave, a flash floo
 2\. Target Persona: Quick-Commerce
 ----------------------------------
 
-We designed RiskWire specifically for **Q-Commerce Riders (e.g., Blinkit, Zepto, Swiggy Instamart)**.
+We designed RiskWire specifically for **Gig Workers - (e.g., Zomato, Swiggy ,Pandas...)**.
 
-*   **The Rationale:** Q-commerce operates in hyper-local, 2-to-3 kilometer dark-store radiuses under brutal 10-minute SLAs.
+*   **The Rationale:** Gig Workers operates in hyper-local, 2-to-3 kilometer dark-store radiuses under brutal 10-minute SLAs.
     
 *   **The Advantage:** This allows RiskWire to utilize highly precise, micro-zonal telemetry, calculating exact risk profiles for specific neighborhoods rather than applying a blanket policy to an entire city.
     
@@ -45,7 +45,7 @@ We designed RiskWire specifically for **Q-Commerce Riders (e.g., Blinkit, Zepto,
 
 RiskWire is not just a standard policy wrapper; it introduces major technological and UX disruptions tailored for the masses:
 
-### A. Vani AI: Voice-First Inclusive Assistant
+### A. Voice-First Inclusive Assistant
 
 Gig workers operate in high-motion environments where typing is dangerous, and many struggle with complex financial literacy.
 
