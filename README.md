@@ -47,7 +47,7 @@ RiskWire is an AI-powered, parametric micro-insurance product built natively on 
 
 
 
-3\. Target Persona: Quick-Commerce
+3\. Target Persona
 ----------------------------------
 
 Our primary focus is on hyper-local delivery partners (Platforms: Swiggy, Zomato...) They are highly sensitive to local disruptions. Highly vulnerable to localized disruptions (waterlogging, sudden traffic jams, curfews, platform shutdowns).
