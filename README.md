@@ -50,10 +50,18 @@ RiskWire is an AI-powered, parametric micro-insurance product built natively on 
 3\. Target Persona: Quick-Commerce
 ----------------------------------
 
-Our primary focus is on hyper-local delivery partners (Platforms: Swiggy, Zomato...) who work within small delivery radiuses (2-3 km). They are highly sensitive to local disruptions.
+Our primary focus is on hyper-local delivery partners (Platforms: Swiggy, Zomato...) They are highly sensitive to local disruptions. Highly vulnerable to localized disruptions (waterlogging, sudden traffic jams, curfews, platform shutdowns).
+No protection today when storms, pollution alerts, or local shutdowns force them offline.
+
+
+
 
 
 **Why this segment?**Real-time operational data is available, giving clear visibility of work stoppage, which is ideal for precise and fair insurance triggers.
+
+Lost income is easy to quantify (orders per hour, hourly wage).
+Disruptions are hyper‑local and instantly visible in platform logs.
+This makes parametric triggers and AI‑based risk profiling very clean and demo‑friendly.
 
 
 
@@ -77,7 +85,7 @@ Traditional insurance cannot scale to the gig economy because of high monthly pr
 
 ### A. Dynamic 3-Tier Business Model
 
-RiskWire follows a flexible 3-tier subscription model (e.g., Basic Plan: ₹25/week, Standard Plan: ₹50/week, Pro Plan: ₹100/week). Premiums are adjusted using an AI-based Risk Multiplier. Higher risk zones result in a slightly higher premium, making it affordable, scalable, and user-controlled.
+RiskWire follows a flexible 3-tier subscription model (e.g., Basic Plan, Standard Plan, Pro Plan). Premiums are adjusted using an AI-based Risk Multiplier. Higher risk zones result in a slightly higher premium, making it affordable, scalable, and user-controlled.
 
 
 ### B. AI Voice-First Multilingual Assistant
@@ -232,15 +240,15 @@ Integrated with a Python ML Oracle for pricing & fraud detection.
 9\. Phase 1 to 3 Execution Roadmap
 ----------------------------------
 
-*   **\[x\] Phase 1: Ideation & Foundation (Seed)**
+*   **\[x\] Phase 1: Ideation & Foundation (Seed)  Theme: Ideate & Know Your Delivery Worker**
     
     *   _Completed:_ Finalized GWCP architecture, Jutro frontend strategy, Voice AI inclusion, Market Crash protocol, and the Multi-Layered Anti-Spoofing defense.
         
-*   **\[ \] Phase 2: Automation & Protection (Soar)**
+*   **\[ \] Phase 2: Automation & Protection (Soar) Theme: Protect Your  Worker**
     
     *   _Next Steps:_ Scaffold Jutro application. Configure APD and PolicyCenter for weekly terms. Build the Python FastAPI Oracle and link it via the Guidewire Integration Gateway.
         
-*   **\[ \] Phase 3: Scale & Optimise (Scale)**
+*   **\[ \] Phase 3: Scale & Optimise (Scale) Theme: Perfect For Your Worker**
     
     *   _Upcoming:_ Implement ClaimCenter Autopilot logic. Refine the Voice-to-Voice UX. Record the end-to-end zero-touch claim demo demonstrating GWCP's power.
         
