@@ -1,4 +1,4 @@
-⚡ RiskWire: AI-Powered Parametric Income Protection for India’s Gig Economy
+# ⚡ RiskWire: AI-Powered Parametric Income Protection for India’s Gig Economy
 
 **Submission for Guidewire DEVTrails 2026 – Phase 1 (Seed)**
 
