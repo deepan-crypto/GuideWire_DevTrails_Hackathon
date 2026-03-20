@@ -234,6 +234,83 @@ Integrated with a Python ML Oracle for pricing & fraud detection.
 *   **Zonal Data ETL Pipeline (PySpark):** Processes aggregated Zonal Metrics and Insured vs. Uninsured Density data.
     
 
+💻 System Architecture & UI Flow Deep Dive
+------------------------------------------
+
+RiskWire operates on a decoupled architecture. We utilize the **Guidewire Cloud Platform (GWCP)** for secure financial orchestration and policy management, while offloading heavy actuarial computation to our **Python ML Oracle**.
+
+### 1\. The Frontend: Jutro Digital Platform (UI Flow)
+
+We leverage Guidewire’s Jutro framework to build accessible, React-based interfaces tailored for two distinct users:
+
+**A. The Rider Mobile App (Gig Worker Flow)**
+
+*   **Step 1: Frictionless Onboarding & KYC:** The rider logs in using their mobile number. The system integrates with government APIs (e.g., DigiLocker/Aadhaar) for instant identity verification, preventing "ghost rider" accounts. The rider selects their specific Q-commerce micro-zone (2-3km radius).
+    
+*   **Step 2: Dynamic Subscription (The 3-Tier Model):** The UI displays the Basic, Standard, and Pro weekly plans. _Crucially, these prices are not static._ The Jutro app fetches the AI-adjusted premium in real-time.
+    
+*   **Step 3: Vani AI Voice Hub:** A persistent, highly visible microphone button exists on the dashboard. Riders can tap and ask, _"If it rains tomorrow, how much will I get paid?"_ in Tamil or Hindi, receiving an instant voice reply.
+    
+*   **Step 4: Zero-Touch Claim Tracker:** When a disruption occurs, the UI updates automatically showing a visual pipeline: Monitoring Weather -> Trigger Met -> Validating Shift Status -> Payout Sent.
+    
+
+**B. The Admin / Insurer Web Dashboard**
+
+*   **Risk Heatmaps:** Built using Jutro components and Recharts, fed by our Pandas ETL pipeline to show real-time "Insured vs. Uninsured" density maps across city zones.
+    
+*   **Fraud Audit Log:** Displays real-time blocked transactions flagged by our Anti-Spoofing AI, detailing the exact reason (e.g., "VPN Datacenter IP Detected" or "Mock Location Flagged").
+    
+
+### 2\. The Backend: GWCP Orchestration
+
+Guidewire is the ultimate system of record. Here is how it orchestrates the product:
+
+*   **Advanced Product Designer (APD):** Defines the structural rules, exclusions, and coverage limits of the "Gig Income Protection" product.
+    
+*   **Guidewire Integration Gateway:** The secure API middleware that bridges Guidewire's Java ecosystem with external APIs (OpenWeather, Swiggy mock data) and our Python ML Oracle.
+    
+*   **PolicyCenter:** Manages the lifecycle. When a rider opens the Jutro app to buy a policy, PolicyCenter pings the Integration Gateway to ask the ML Oracle for today's price multiplier, generates the quote, and issues the weekly policy.
+    
+*   **ClaimCenter + Autopilot:** Runs hourly scheduled checks against the weather and platform APIs. If the dual-triggers are met, Autopilot executes straight-through processing—bypassing human adjusters to approve and dispatch the wallet payout instantly.
+    
+
+### 3\. The Actuarial & Risking Oracle (How the AI Works)
+
+_Why a separate Oracle?_ Java is excellent for financial ledgers, but Python is the industry standard for Machine Learning. To ensure PolicyCenter remains fast and stable, we offloaded all heavy AI computation to a standalone **Python FastAPI microservice**.
+
+The Oracle houses three distinct AI engines:
+
+#### Engine A: Dynamic Premium Pricing (Gradient Boosting Regressor)
+
+Standard linear regression fails in insurance because environmental risks compound non-linearly (e.g., high heat + high humidity is exponentially more dangerous than just high heat).
+
+*   **The Input:** The Oracle ingests a 5-day hyper-local weather forecast (Max Temp, Rainfall, Humidity, Wind Speed) for the rider's specific zone.
+    
+*   **The Processing:** We utilize a **Gradient Boosting Regressor** (scikit-learn). It builds sequential decision trees, where each new tree corrects the mathematical errors of the previous one, allowing it to predict complex weather risk spikes accurately.
+    
+*   **The Output:** It returns a Risk Multiplier (e.g., 1.3x). PolicyCenter multiplies the base premium by 1.3 to protect the insurer's liquidity pool _before_ the storm hits.
+    
+
+#### Engine B: Zero-Trust Fraud Defense (Isolation Forest)
+
+To defeat 500-device GPS-spoofing syndicates, we cannot rely on simple rules. We treat fraud as an anomaly detection problem.
+
+*   **The Input:** When ClaimCenter initiates a payout, it sends the device telemetry (OS Mock Location flags, Network RTT latency, BSSID Wi-Fi MAC addresses, and kinematic movement history) to the Oracle.
+    
+*   **The Processing:** We use an **Isolation Forest** unsupervised learning model. Genuine riders caught in a storm share a dense, chaotic, but unified spatial-network footprint. Fraudsters using VPNs and emulators look mathematically isolated in high-dimensional space (e.g., their GPS says Chennai, but their ping latency says Europe). The Isolation Forest easily isolates and "cuts" these anomalies out of the dataset.
+    
+*   **The Output:** Returns a Confidence Score. High confidence triggers ClaimCenter Autopilot. Low confidence pauses the smart contract.
+    
+
+#### Engine C: Vani AI (In-Context RAG via Gemini 1.5 Flash)
+
+We prevent LLM hallucinations by using a Retrieval-Augmented Generation (RAG) architecture.
+
+*   **The Input:** The rider speaks into the Jutro app in their native language.
+    
+*   **The Processing:** The audio is transcribed. The Oracle retrieves the specific, hard-coded policy rules from PolicyCenter. We inject both the user's question and the strict policy rules into the context window of **Google Gemini 1.5 Flash**. We prompt Gemini to _only_ answer based on the provided rules.
+    
+*   **The Output:** Gemini generates an accurate, translated text response, which is converted back to speech and played to the rider, ensuring zero-latency, hands-free support.
 
 
 10\. Phase 1 to 3 Execution Roadmap
