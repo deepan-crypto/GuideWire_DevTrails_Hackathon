@@ -249,7 +249,7 @@ We leverage Guidewire’s Jutro framework to build accessible, React-based inter
     
 *   **Step 2: Dynamic Subscription (The 3-Tier Model):** The UI displays the Basic, Standard, and Pro weekly plans. _Crucially, these prices are not static._ The Jutro app fetches the AI-adjusted premium in real-time.
     
-*   **Step 3: Vani AI Voice Hub:** A persistent, highly visible microphone button exists on the dashboard. Riders can tap and ask, _"If it rains tomorrow, how much will I get paid?"_ in Tamil or Hindi, receiving an instant voice reply.
+*   **Step 3: AI Voice Hub:** A persistent, highly visible microphone button exists on the dashboard. Riders can tap and ask, _"If it rains tomorrow, how much will I get paid?"_ in Tamil or Hindi, receiving an instant voice reply.
     
 *   **Step 4: Zero-Touch Claim Tracker:** When a disruption occurs, the UI updates automatically showing a visual pipeline: Monitoring Weather -> Trigger Met -> Validating Shift Status -> Payout Sent.
     
@@ -302,7 +302,7 @@ To defeat 500-device GPS-spoofing syndicates, we cannot rely on simple rules. We
 *   **The Output:** Returns a Confidence Score. High confidence triggers ClaimCenter Autopilot. Low confidence pauses the smart contract.
     
 
-#### Engine C: Vani AI (In-Context RAG via Gemini 1.5 Flash)
+#### Engine C: AI (In-Context RAG via Gemini 1.5 Flash)
 
 We prevent LLM hallucinations by using a Retrieval-Augmented Generation (RAG) architecture.
 
