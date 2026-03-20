@@ -313,6 +313,57 @@ We prevent LLM hallucinations by using a Retrieval-Augmented Generation (RAG) ar
 *   **The Output:** Gemini generates an accurate, translated text response, which is converted back to speech and played to the rider, ensuring zero-latency, hands-free support.
 
 
+### 🧠 Deep Dive: The AI Actuarial Pricing Engine
+
+Traditional insurance uses static actuarial tables and linear regression. This completely fails for parametric weather insurance because environmental threats compound non-linearly (e.g., high heat combined with high humidity is exponentially more likely to force a rider offline than just high heat alone).
+
+To solve this, RiskWire calculates a hyper-localized, dynamic weekly premium using a **Gradient Boosting Regressor (GBR)** hosted on our external Python FastAPI ML Oracle.
+
+Here is exactly how the pricing pipeline works before a rider even opens the Jutro app:
+
+#### 1\. The Data Ingestion Layer (The Inputs)
+
+Every 24 hours, our Pandas ETL pipeline aggregates data for specific Q-commerce micro-zones (2-3 km radiuses). The model ingests a high-dimensional feature matrix:
+
+*   **Meteorological Forecast (5-Day):** Expected rainfall intensity (mm/hr), max/min temperatures, AQI levels, and wind speed pulled via OpenWeather APIs.
+    
+*   **Spatial Risk History:** Historical disruption frequency for that specific zone (e.g., "Zone A floods easily due to poor drainage").
+    
+*   **Rider Shift Exposure:** The specific hours the rider plans to work (e.g., a rider working the 12 PM - 4 PM shift carries a higher heatwave risk penalty than a 7 PM - 11 PM rider).
+    
+
+#### 2\. The Algorithm: Gradient Boosting Regressor (scikit-learn)
+
+We selected a Gradient Boosting Regressor because of its ability to handle complex, non-linear environmental data.
+
+*   Instead of building one massive, complex equation, GBR builds an ensemble of sequential, shallow decision trees.
+    
+*   **Error Correction:** Each new tree is specifically trained to predict the _residual errors_ (the mistakes) made by the previous trees.
+    
+*   If Tree 1 underestimates the risk of urban waterlogging, Tree 2 mathematically corrects that specific blind spot. By the time the ensemble finishes, it produces a highly resilient prediction of the likelihood of an income-loss event occurring in that zone during that week.
+    
+
+#### 3\. The Output: The Dynamic Risk Multiplier
+
+The ML model does not spit out a flat currency amount. It outputs a **Risk Multiplier** (e.g., 0.9x for clear weather, or 2.4x for an incoming monsoon).
+
+#### 4\. The Guidewire PolicyCenter Integration
+
+This is where the ML Oracle bridges with the enterprise ledger.
+
+1.  The rider opens the Jutro app and selects the 'Standard' weekly tier for Zone A.
+    
+2.  Jutro pings the Guidewire Integration Gateway.
+    
+3.  PolicyCenter holds the "Base Premium" (e.g., ₹50).
+    
+4.  PolicyCenter fetches the current Risk Multiplier from the Python Oracle (e.g., 1.5x).
+    
+5.  The final quoted price shown to the rider is seamlessly calculated as **₹75 for that specific week**.
+    
+
+**The Business Value:** By dynamically adjusting the premium _before_ the policy is locked in for the week, the AI actively protects the insurer's liquidity pool against predictable mass-payout events, making micro-insurance mathematically viable at scale.
+
 10\. Phase 1 to 3 Execution Roadmap
 ----------------------------------
 
