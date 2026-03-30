@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Omnidex Weather Insurance</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#eef2f7;
+text-align:center;
+}
+
+.container{
+width:500px;
+margin:auto;
+margin-top:80px;
+padding:25px;
+background:white;
+border-radius:10px;
+box-shadow:0px 0px 10px rgba(0,0,0,0.2);
+}
+
+button{
+padding:10px 20px;
+margin:10px;
+background:#007bff;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+input{
+padding:10px;
+width:250px;
+}
+
+.result{
+margin-top:20px;
+text-align:left;
+}
+
+.plan{
+border:1px solid #ddd;
+padding:10px;
+margin:8px;
+border-radius:6px;
+}
+
+.trigger{
+font-weight:bold;
+color:red;
+}
+
+.safe{
+font-weight:bold;
+color:green;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Omnidex Weather Insurance Engine</h2>
+
+<input id="zone" placeholder="Enter City (ex: Bangalore)" />
+
+<br>
+
+<button onclick="getForecast()">Forecast Pricing</button>
+<button onclick="getLive()">Check Payout Trigger</button>
+
+<div class="result" id="result"></div>
+
+</div>
+
+<script>
+
+const API="http://127.0.0.1:8000"
+
+async function getForecast(){
+
+const zone=document.getElementById("zone").value
+
+const res=await fetch(`${API}/api/v1/pricing/forecast-quote?zone=${zone}`)
+const data=await res.json()
+
+document.getElementById("result").innerHTML=
+`
+<h3>Zone: ${data.zone}</h3>
+<h3>Risk Multiplier: ${data.risk_multiplier}</h3>
+
+<h3>Plans</h3>
+
+<div class="plan">
+<b>Basic</b><br>
+Premium: ₹${data.plans.basic.premium}<br>
+Daily payout: ₹${data.plans.basic.daily_payout}
+</div>
+
+<div class="plan">
+<b>Standard</b><br>
+Premium: ₹${data.plans.standard.premium}<br>
+Daily payout: ₹${data.plans.standard.daily_payout}
+</div>
+
+<div class="plan">
+<b>Pro</b><br>
+Premium: ₹${data.plans.pro.premium}<br>
+Daily payout: ₹${data.plans.pro.daily_payout}
+</div>
+`
+}
+
+async function getLive(){
+
+const zone=document.getElementById("zone").value
+
+const res=await fetch(`${API}/api/v1/pricing/quote?zone=${zone}`)
+const data=await res.json()
+
+let payoutStatus=data.payout_triggered
+? "<span class='trigger'>PAYOUT TRIGGERED</span>"
+: "<span class='safe'>No payout required</span>"
+
+document.getElementById("result").innerHTML=
+`
+<h3>Live Weather</h3>
+
+City: ${data.zone}<br>
+Temperature: ${data.live_temp}°C<br>
+Rain: ${data.live_rain} mm<br>
+
+<h2>${payoutStatus}</h2>
+`
+}
+
+</script>
+
+</body>
+</html>
