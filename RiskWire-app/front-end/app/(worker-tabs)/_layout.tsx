@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { LayoutDashboard, User, IndianRupee, Bell } from 'lucide-react-native';
 
 const PB_NAVY = '#0F4C81';
@@ -53,9 +53,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopColor: '#E5E9F2',
     borderTopWidth: 1,
-    height: 80,
-    paddingTop: 8,
-    paddingBottom: 16,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    height: Platform.OS === 'ios' ? 84 : 60,
   },
   label: { fontSize: 11, fontWeight: '700' },
   icon: { marginBottom: 2 },

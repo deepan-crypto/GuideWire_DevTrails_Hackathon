@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFF',
   },
   badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-  content: { padding: 16, gap: 16 },
+  content: { padding: 16, gap: 16, paddingBottom: 32 },
   alertsContainer: { gap: 8 },
   alertBox: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, gap: 10 },
   alertGreen:  { backgroundColor: '#F1FDF5', borderColor: '#C8E6C9' },
