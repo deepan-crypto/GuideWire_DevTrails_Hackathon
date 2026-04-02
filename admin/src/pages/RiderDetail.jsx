@@ -6,7 +6,7 @@ import {
   CreditCard, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronRight,
   MessageSquare, PhoneCall, Video, Send
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const PLAN_COLORS = { 'Heat Shield Pro': '#00529B', 'Heat Shield Basic': '#4A90D9', 'Rain Guard Plus': '#2ECC71', 'Multi-Peril Cover': '#E67E22' }
 
