@@ -31,7 +31,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Fetch live prices from the pricing engine
-    fetch('http://localhost:8080/api/v1/insurance/quote?riderId=1')
+    fetch('https://backend-guidewire-devtrails-hackathon.onrender.com/api/v1/insurance/quote?riderId=1')
       .then(res => res.json())
       .then(data => {
         const p: Record<string, number> = {};
