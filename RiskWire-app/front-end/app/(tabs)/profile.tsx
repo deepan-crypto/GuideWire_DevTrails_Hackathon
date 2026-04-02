@@ -1,27 +1,48 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
-import { User, Activity, ArrowLeft } from 'lucide-react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { User, Activity } from 'lucide-react-native';
+import { getCachedRiderId, loadOnboardingState } from '@/utils/onboardingState';
+import { getRider, Rider } from '@/utils/api';
 
 export default function ProfileScreen() {
+  const [rider, setRider] = useState<Rider | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      await loadOnboardingState();
+      const id = getCachedRiderId();
+      if (id) {
+        const data = await getRider(id);
+        setRider(data);
+      }
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/dashboard')} style={styles.backBtn}>
-          <ArrowLeft size={22} color="#0066CC" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
-      
+
       <View style={styles.content}>
         <View style={styles.profileCard}>
-           <View style={styles.avatar}>
-             <User size={32} color="#FFF" />
-           </View>
-           <Text style={styles.name}>Mathumitha S</Text>
-           <Text style={styles.subtitle}>Gig Worker</Text>
+          <View style={styles.avatar}>
+            {loading
+              ? <ActivityIndicator color="#FFF" />
+              : <User size={32} color="#FFF" />
+            }
+          </View>
+          <Text style={styles.name}>{loading ? 'Loading...' : (rider?.name ?? 'Guest User')}</Text>
+          <Text style={styles.subtitle}>Gig Worker · {rider?.platform ?? '—'}</Text>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuItem}
           onPress={() => router.push('/dashboard')}
         >
@@ -41,7 +62,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#E5E9F2',
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  backBtn: { padding: 4 },
   headerTitle: { fontSize: 24, fontWeight: '900', color: '#0066CC' },
   content: { padding: 20, gap: 20 },
   profileCard: {
@@ -54,7 +74,6 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 20, fontWeight: 'bold', color: '#1A1A24' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 4 },
-  
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 16,
     backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12,
