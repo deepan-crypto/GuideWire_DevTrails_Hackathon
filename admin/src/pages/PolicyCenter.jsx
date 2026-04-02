@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { policies as mockPolicies } from '../data/mockData'
 import { fetchPolicies } from '../services/api'
 import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react'
 
@@ -36,7 +35,7 @@ export default function PolicyCenter() {
   const navigate = useNavigate()
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState(null)
-  const [policies, setPolicies] = useState(mockPolicies)
+  const [policies, setPolicies] = useState([])
 
   useEffect(() => {
     fetchPolicies().then(data => {
