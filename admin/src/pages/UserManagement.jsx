@@ -97,7 +97,8 @@ export default function UserManagement() {
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/admin/riders')
+    const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/admin'
+    fetch(`${BASE_URL}/riders`)
       .then(r => r.json())
       .then(data => { if (data && data.length > 0) setRiders(data) })
       .catch(() => {})
