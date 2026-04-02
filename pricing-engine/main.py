@@ -5,6 +5,10 @@ import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import GradientBoostingRegressor
+from dotenv import load_dotenv
+
+load_dotenv()
+
 app=FastAPI()
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
 OWM_KEY=os.getenv("OWM_API_KEY","YOUR_OPENWEATHER_KEY")
