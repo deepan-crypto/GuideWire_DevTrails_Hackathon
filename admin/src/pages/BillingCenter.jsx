@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { billingData as mockBillingData } from '../data/mockData'
 import { fetchBillingSummary, fetchTransactions, fetchMonthlyTrend } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle } from 'lucide-react'
@@ -47,9 +46,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function BillingCenter() {
-  const [summary, setSummary] = useState(mockBillingData.summary)
-  const [monthlyTrend, setMonthlyTrend] = useState(mockBillingData.monthlyTrend)
-  const [recentTransactions, setRecentTransactions] = useState(mockBillingData.recentTransactions)
+  const [summary, setSummary] = useState({ totalPremiums: 0, totalPayouts: 0, netRevenue: 0, lossRatio: 0, activePolicies: 0, claimsPaid: 0, avgClaimSize: 0, autoApprovalRate: 0 })
+  const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [recentTransactions, setRecentTransactions] = useState([])
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
