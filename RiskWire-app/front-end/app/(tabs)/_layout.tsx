@@ -11,9 +11,9 @@ export default function TabLayout() {
   useEffect(() => {
     loadOnboardingState().then((done) => {
       setUserCreated(done);
-      // If already created, leave tabs immediately → go to dashboard
+      // If already created, go to worker tabs (has bottom tab bar)
       if (done) {
-        router.replace('/dashboard');
+        router.replace('/(worker-tabs)' as any);
       }
     });
   }, []);
@@ -24,7 +24,7 @@ export default function TabLayout() {
       const done = isOnboardingComplete();
       setUserCreated(done);
       if (done) {
-        router.replace('/dashboard');
+        router.replace('/(worker-tabs)' as any);
       }
     }, [])
   );
