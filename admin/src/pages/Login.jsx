@@ -1,77 +1,90 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../context/AuthContext'
-import { Shield, Eye, EyeOff, AlertCircle, ChevronRight, Zap } from 'lucide-react'
+import { Eye, EyeOff, ExternalLink } from 'lucide-react'
 
-const ROLE_CARDS = [
-  {
-    role: 'super_admin',
-    color: 'from-purple-600 to-purple-800',
-    border: 'border-purple-500/40',
-    accent: 'text-purple-300',
-    bg: 'bg-purple-500/10',
-    emoji: '🛡️',
-    email: 'admin@riskwire.in',
-    password: 'admin123',
-  },
-  {
-    role: 'claims_manager',
-    color: 'from-blue-600 to-blue-800',
-    border: 'border-blue-500/40',
-    accent: 'text-blue-300',
-    bg: 'bg-blue-500/10',
-    emoji: '📋',
-    email: 'claims@riskwire.in',
-    password: 'claims123',
-  },
-  {
-    role: 'policy_admin',
-    color: 'from-green-600 to-green-800',
-    border: 'border-green-500/40',
-    accent: 'text-green-300',
-    bg: 'bg-green-500/10',
-    emoji: '📄',
-    email: 'policy@riskwire.in',
-    password: 'policy123',
-  },
-  {
-    role: 'billing_admin',
-    color: 'from-amber-600 to-amber-800',
-    border: 'border-amber-500/40',
-    accent: 'text-amber-300',
-    bg: 'bg-amber-500/10',
-    emoji: '💰',
-    email: 'billing@riskwire.in',
-    password: 'billing123',
-  },
+// ── The exact Guidewire "G" SVG logo ──────────────────────────────────────────
+function GuidewireLogo() {
+  return (
+    <div className="flex items-center justify-center gap-3 mb-0">
+      {/* Teal square G icon */}
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="4" fill="none"/>
+        {/* The stylised G path matching Guidewire brand */}
+        <path
+          d="M5 6 H22 V12 H11 V24 H22 V19 H16 V13 H28 V30 H5 V6Z"
+          fill="#006B8F"
+        />
+      </svg>
+      {/* GUIDEWIRE wordmark */}
+      <span style={{
+        fontFamily: "'Open Sans', 'Arial', sans-serif",
+        fontSize: '22px',
+        fontWeight: '700',
+        color: '#1A1A2E',
+        letterSpacing: '2px',
+        textTransform: 'uppercase',
+      }}>
+        GUIDEWIRE
+      </span>
+    </div>
+  )
+}
+
+// Okta FastPass logo (teal circle checkmark)
+function OktaFastPassIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="10" fill="#00297A"/>
+      <path d="M6 10.5L8.5 13L14 7.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+const DEMO_ROLES = [
+  { role: 'super_admin',    label: 'Super Admin',     desc: 'Full access to all modules',       email: 'admin@riskwire.in',   password: 'admin123' },
+  { role: 'claims_manager', label: 'Claims Manager',  desc: 'Claims & Policy read access',      email: 'claims@riskwire.in',  password: 'claims123' },
+  { role: 'policy_admin',   label: 'Policy Admin',    desc: 'Policy management & analytics',    email: 'policy@riskwire.in',  password: 'policy123' },
+  { role: 'billing_admin',  label: 'Billing Admin',   desc: 'Billing & financial overview',     email: 'billing@riskwire.in', password: 'billing123' },
 ]
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [step, setStep] = useState('username') // 'username' | 'password'
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedRole, setSelectedRole] = useState(null)
 
-  const handleRoleCard = (card) => {
-    setSelectedRole(card.role)
-    setEmail(card.email)
-    setPassword(card.password)
+  const handleRoleClick = (r) => {
+    setSelectedRole(r.role)
+    setUsername(r.email)
+    setPassword(r.password)
     setError('')
+    setStep('username')
   }
 
-  const handleSubmit = async (e) => {
+  const handleNext = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (step === 'username') {
+      if (!username.trim()) { setError('Please enter your username.'); return }
+      setStep('password')
+      return
+    }
+
+    // Sign in
     setLoading(true)
-    await new Promise(r => setTimeout(r, 800)) // simulate auth delay
-    const ok = login(email.trim(), password)
+    await new Promise(r => setTimeout(r, 700))
+    const ok = login(username.trim(), password)
     if (!ok) {
-      setError('Invalid credentials. Use one of the demo cards above.')
+      setError('Unable to sign in. Check your credentials.')
       setLoading(false)
       return
     }
@@ -79,143 +92,351 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,82,155,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(0,82,155,0.07)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-      {/* Glow */}
-      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-700/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-[520px]">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/50">
-              <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-                <path d="M12 14h16v2H14v8h10v-4h-6v-2h8v8H12V14z" fill="white" />
-                <circle cx="30" cy="14" r="3" fill="#4FC3F7" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <div className="text-white font-bold text-[18px] leading-tight tracking-tight">Guidewire</div>
-              <div className="text-blue-400 text-[10px] uppercase tracking-widest">InsuranceSuite</div>
-            </div>
-          </div>
-          <h1 className="text-white text-[24px] font-bold tracking-tight">Sign in to RiskWire</h1>
-          <p className="text-blue-400/70 text-[13px] mt-1">Parametric Micro-Insurance Operations</p>
-        </div>
-
-        {/* Role cards */}
-        <div className="mb-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-400/60 mb-3 text-center">
-            Quick Access — Select a demo role
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {ROLE_CARDS.map(card => {
-              const role = ROLES[card.role]
-              const isSelected = selectedRole === card.role
-              return (
-                <button
-                  key={card.role}
-                  type="button"
-                  onClick={() => handleRoleCard(card)}
-                  className={`relative text-left p-3 rounded-xl border transition-all duration-200 ${card.border} ${card.bg}
-                    ${isSelected
-                      ? 'ring-2 ring-white/30 scale-[1.02] shadow-lg'
-                      : 'hover:scale-[1.01] hover:brightness-110'
-                    }`}
-                >
-                  {isSelected && (
-                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  )}
-                  <div className="text-[20px] mb-1">{card.emoji}</div>
-                  <div className={`text-[12px] font-bold ${card.accent}`}>{role.label}</div>
-                  <div className="text-[10px] text-white/40 leading-tight mt-0.5">{role.description}</div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Login form */}
-        <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-          <div className="mb-4">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-blue-300/80 mb-1.5">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => { setEmail(e.target.value); setError('') }}
-              placeholder="Enter your email"
-              className="w-full bg-white/8 border border-white/15 rounded-lg px-3.5 py-2.5 text-white text-[13px] placeholder:text-white/25
-                focus:outline-none focus:border-blue-400/60 focus:bg-white/12 transition-all"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="mb-5">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-blue-300/80 mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError('') }}
-                placeholder="Enter your password"
-                className="w-full bg-white/8 border border-white/15 rounded-lg px-3.5 py-2.5 text-white text-[13px] placeholder:text-white/25
-                  focus:outline-none focus:border-blue-400/60 focus:bg-white/12 transition-all pr-10"
-                required
-                autoComplete="current-password"
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #D4DCE8 0%, #E8ECF2 40%, #D9E0EA 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      fontFamily: "'Open Sans', 'Helvetica Neue', Arial, sans-serif",
+    }}>
+      {/* Top Okta banner */}
+      <div style={{
+        width: '100%',
+        background: '#F0F2F5',
+        borderBottom: '1px solid #D0D5DD',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '18px 0 14px',
+      }}>
+        {/* Okta grid icon */}
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%',
+          background: 'white',
+          border: '2px solid #3B7DDD',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 8,
+        }}>
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            {[0,1,2].map(row => [0,1,2].map(col => (
+              <circle
+                key={`${row}-${col}`}
+                cx={4 + col * 7}
+                cy={4 + row * 7}
+                r="2"
+                fill="#3B7DDD"
               />
-              <button
-                type="button"
-                onClick={() => setShowPw(p => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-              >
-                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
+            )))}
+          </svg>
+        </div>
+        <p style={{ margin: 0, color: '#444', fontSize: 13 }}>
+          Sign in with your account to access Okta Dashboard
+        </p>
+      </div>
+
+      {/* Main white card */}
+      <div style={{
+        marginTop: 32,
+        width: '100%',
+        maxWidth: 440,
+        background: 'white',
+        borderRadius: 10,
+        boxShadow: '0 2px 16px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
+      }}>
+        {/* Logo header area */}
+        <div style={{
+          padding: '28px 40px 20px',
+          borderBottom: '1px solid #E8E8E8',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <GuidewireLogo />
+        </div>
+
+        {/* Form body */}
+        <div style={{ padding: '28px 40px 32px' }}>
+          <h1 style={{
+            margin: '0 0 24px',
+            fontSize: 26,
+            fontWeight: '400',
+            color: '#1d1d1d',
+            letterSpacing: '-0.3px',
+          }}>
+            Sign In
+          </h1>
+
+          {/* Demo role selector — compact inline chips */}
+          <div style={{ marginBottom: 20 }}>
+            <p style={{
+              margin: '0 0 8px',
+              fontSize: 10,
+              fontWeight: '700',
+              color: '#888',
+              textTransform: 'uppercase',
+              letterSpacing: '0.8px',
+            }}>
+              Quick Access — Select a demo role
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {DEMO_ROLES.map(r => (
+                <button
+                  key={r.role}
+                  type="button"
+                  onClick={() => handleRoleClick(r)}
+                  style={{
+                    background: selectedRole === r.role ? '#EEF3FB' : '#F7F9FC',
+                    border: selectedRole === r.role ? '1.5px solid #3B7DDD' : '1.5px solid #E0E4EC',
+                    borderRadius: 6,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: 11.5, fontWeight: '700', color: selectedRole === r.role ? '#3B7DDD' : '#333' }}>
+                    {r.label}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#888', marginTop: 1 }}>{r.desc}</div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {error && (
-            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-4">
-              <AlertCircle size={14} className="text-red-400 shrink-0" />
-              <span className="text-[11.5px] text-red-300">{error}</span>
+          <form onSubmit={handleNext}>
+            {/* FastPass button */}
+            <button
+              type="button"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '10px 0',
+                border: '1px solid #D0D5DD',
+                borderRadius: 4,
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: 14,
+                color: '#1d1d1d',
+                fontWeight: '500',
+                marginBottom: 16,
+              }}
+            >
+              <OktaFastPassIcon />
+              Sign in with Okta FastPass
+            </button>
+
+            {/* OR divider */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+              color: '#999', fontSize: 12,
+            }}>
+              <div style={{ flex: 1, height: 1, background: '#E0E0E0' }} />
+              OR
+              <div style={{ flex: 1, height: 1, background: '#E0E0E0' }} />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading || !email || !password}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600
-              text-white font-semibold text-[14px] py-2.5 rounded-xl transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2
-              shadow-lg shadow-blue-900/40 hover:shadow-blue-800/50"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Authenticating...
-              </>
-            ) : (
-              <>
-                Sign In <ChevronRight size={16} />
-              </>
+            {/* Username field */}
+            <div style={{ marginBottom: step === 'password' ? 16 : 0 }}>
+              <label style={{
+                display: 'block', marginBottom: 4,
+                fontSize: 13, fontWeight: '600', color: '#444',
+              }}>
+                Username
+              </label>
+              <p style={{ margin: '0 0 6px', fontSize: 12, color: '#888' }}>
+                Example: username@guidewire.com
+              </p>
+              <input
+                type="email"
+                value={username}
+                onChange={e => { setUsername(e.target.value); setError(''); setSelectedRole(null) }}
+                autoComplete="username"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #C8CDD6',
+                  borderRadius: 4,
+                  fontSize: 14,
+                  color: '#1d1d1d',
+                  background: '#FAFAFA',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+                onFocus={e => (e.target.style.borderColor = '#3B7DDD')}
+                onBlur={e => (e.target.style.borderColor = '#C8CDD6')}
+              />
+            </div>
+
+            {/* Password field — shown in step 2 */}
+            {step === 'password' && (
+              <div style={{ marginBottom: 0 }}>
+                <label style={{
+                  display: 'block', marginBottom: 6,
+                  fontSize: 13, fontWeight: '600', color: '#444',
+                }}>
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); setError('') }}
+                    autoComplete="current-password"
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '10px 40px 10px 12px',
+                      border: '1px solid #C8CDD6',
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: '#1d1d1d',
+                      background: '#FAFAFA',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
+                    onFocus={e => (e.target.style.borderColor = '#3B7DDD')}
+                    onBlur={e => (e.target.style.borderColor = '#C8CDD6')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    style={{
+                      position: 'absolute', right: 10, top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: '#888', padding: 4,
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
-        </form>
 
-        {/* Footer */}
-        <div className="text-center mt-6 text-[10.5px] text-blue-400/40">
-          <Zap size={11} className="inline mr-1" />
-          Secured by RiskWire IAM · {new Date().getFullYear()}
+            {/* Error */}
+            {error && (
+              <p style={{
+                margin: '10px 0 0',
+                fontSize: 12.5,
+                color: '#D4353E',
+                background: '#FFF0F0',
+                border: '1px solid #F5C6C8',
+                borderRadius: 4,
+                padding: '8px 12px',
+              }}>
+                {error}
+              </p>
+            )}
+
+            {/* Keep me signed in */}
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              margin: '18px 0 16px',
+              fontSize: 13, color: '#554BE8', cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={e => setKeepSignedIn(e.target.checked)}
+                style={{ width: 15, height: 15, cursor: 'pointer' }}
+              />
+              Keep me signed in
+            </label>
+
+            {/* Next / Sign In button */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px 0',
+                background: loading ? '#6B9FE8' : '#3B7DDD',
+                border: 'none',
+                borderRadius: 4,
+                color: 'white',
+                fontSize: 15,
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'background 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" strokeOpacity="0.3"/>
+                    <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                step === 'username' ? 'Next' : 'Sign In'
+              )}
+            </button>
+
+            {/* Help */}
+            {step === 'username' && (
+              <div style={{ marginTop: 16 }}>
+                <a
+                  href="#"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    color: '#3B7DDD', fontSize: 13, textDecoration: 'none',
+                  }}
+                >
+                  Help <ExternalLink size={12} />
+                </a>
+              </div>
+            )}
+
+            {step === 'password' && (
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep('username')}
+                  style={{ background: 'none', border: 'none', color: '#3B7DDD', fontSize: 13, cursor: 'pointer', padding: 0 }}
+                >
+                  ← Back
+                </button>
+                <a href="#" style={{ color: '#3B7DDD', fontSize: 13, textDecoration: 'none' }}>
+                  Forgot password?
+                </a>
+              </div>
+            )}
+          </form>
         </div>
       </div>
+
+      {/* Footer — Powered by Okta / Privacy Policy */}
+      <footer style={{
+        position: 'fixed',
+        bottom: 0, left: 0, right: 0,
+        padding: '10px 24px',
+        background: 'rgba(255,255,255,0.7)',
+        backdropFilter: 'blur(4px)',
+        borderTop: '1px solid #DDE0E6',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: 12,
+        color: '#666',
+      }}>
+        <span>
+          Powered by{' '}
+          <a href="https://okta.com" style={{ color: '#3B7DDD', textDecoration: 'underline' }} target="_blank" rel="noreferrer">
+            Okta
+          </a>
+        </span>
+        <a href="#" style={{ color: '#3B7DDD', textDecoration: 'underline' }}>Privacy Policy</a>
+      </footer>
     </div>
   )
 }
