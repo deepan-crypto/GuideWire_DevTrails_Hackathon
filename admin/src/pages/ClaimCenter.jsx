@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { triggerZones as mockTriggerZones, autoApprovalLog as mockApprovalLog } from '../data/mockData'
 import { fetchTriggerZones, fetchApprovalLog } from '../services/api'
 import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw } from 'lucide-react'
 
@@ -78,8 +77,8 @@ function TriggerZoneCard({ zone }) {
 }
 
 export default function ClaimCenter() {
-  const [zones, setZones] = useState(mockTriggerZones)
-  const [liveLog, setLiveLog] = useState(mockApprovalLog.slice(0, 5))
+  const [zones, setZones] = useState([])
+  const [liveLog, setLiveLog] = useState([])
   const [timer, setTimer] = useState(0)
 
   useEffect(() => {
