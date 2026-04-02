@@ -1,7 +1,6 @@
 package com.dev_trails.hackathon;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-@Component
+// @Component  ← DISABLED: data seeded directly via seed.sql in Render PostgreSQL
 public class DataSeeder implements CommandLineRunner {
 private final PolicyRepository policyRepo;
 private final ClaimRepository claimRepo;
