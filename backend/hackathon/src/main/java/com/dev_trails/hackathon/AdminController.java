@@ -14,7 +14,7 @@ public List<Policy> getPolicies(@RequestParam(required=false) String status) {
 if (status != null) return service.getActivePolicies();
 return service.getAllPolicies();
 }
-@GetMapping("/policies/{policyNumber}")
+@GetMapping("/policies/{policyNumber:.+}")
 public Map<String, Object> getPolicyDetail(@PathVariable String policyNumber) {
 return service.getPolicyDetail(policyNumber);
 }
