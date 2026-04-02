@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { policies, riderClaims, riderBilling, riderActivities, defaultActivities } from '../data/mockData'
+import { fetchPolicyDetail } from '../services/api'
 import {
   ArrowLeft, Edit, FilePlus, StickyNote, MapPin, Phone, Mail, Calendar, Shield,
   CreditCard, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronRight,
@@ -51,7 +51,21 @@ export default function RiderDetail() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('Related')
 
-  const rider = policies.find(p => p.id === riderId)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchPolicyDetail(riderId).then(res => {
+      setData(res)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [riderId])
+
+  if (loading) {
+    return <div className="p-8 text-center text-gw-text-muted">Loading policy details...</div>
+  }
+
+  const rider = data?.policy
   if (!rider) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -65,9 +79,24 @@ export default function RiderDetail() {
     )
   }
 
-  const claims = riderClaims[riderId] || []
-  const billing = riderBilling[riderId] || {}
-  const activities = riderActivities[riderId] || defaultActivities
+  const claims = data?.claims || []
+  const billingTransactions = data?.transactions || []
+  
+  // Create a simulated billing summary based on transactions
+  const premiumTxn = billingTransactions.find(t => t.type === 'PREMIUM')
+  const billing = {
+    paymentStatus: rider.delinquencyStatus === 'YES' ? 'Delinquent' : 'Current',
+    nextPayment: new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString(),
+    pastDue: rider.delinquencyStatus === 'YES' ? rider.premium : '₹0.00',
+    currentPayment: rider.premium,
+    totalDue: rider.delinquencyStatus === 'YES' ? `₹${parseFloat(rider.premium.replace(/[^0-9.]/g, '')) * 2}` : rider.premium,
+    period: 'Monthly',
+    method: 'Wallet Auto-Debit',
+    autoPay: 'YES'
+  }
+
+  const activities = { upcoming: [], past: [] }
+
   const openClaims = claims.filter(c => c.status === 'Open').length
   const closedClaims = claims.filter(c => c.status === 'Closed').length
 
