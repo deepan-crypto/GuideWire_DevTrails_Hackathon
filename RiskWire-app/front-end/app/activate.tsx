@@ -11,10 +11,13 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  Image,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronDown, Search, X, Check, Star, MapPin, Briefcase } from 'lucide-react-native';
+import { ChevronDown, Search, X, Check, Star, MapPin, Briefcase, ShieldCheck, Camera, FileText, AlertTriangle } from 'lucide-react-native';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { setOnboardingComplete, isOnboardingComplete, loadOnboardingState } from '@/utils/onboardingState';
 import { registerRider, buyPolicy } from '@/utils/api';
 
@@ -30,8 +33,33 @@ const CITIES = [
 
 const PLATFORMS = ['Swiggy', 'Zomato', 'Uber', 'Ola', 'Rapido', 'Dunzo', 'Zepto', 'Porter', 'Other'];
 
-const STEP_TITLES = ['Select your age', 'Select your city', 'Where do you work?', 'Location Permission', 'Save your progress'];
-const TOTAL_STEPS = 5;
+// Worker ID prefix per platform for format validation
+const PLATFORM_ID_PREFIX: Record<string, string> = {
+  'Swiggy': 'SW',
+  'Zomato': 'ZM',
+  'Uber': 'UB',
+  'Ola': 'OLA',
+  'Rapido': 'RP',
+  'Dunzo': 'DZ',
+  'Zepto': 'ZP',
+  'Porter': 'PT',
+  'Other': 'GW',
+};
+
+const PLATFORM_ID_REGEX: Record<string, RegExp> = {
+  'Swiggy': /^SW-[A-Z0-9]{6}$/,
+  'Zomato': /^ZM-[A-Z0-9]{6}$/,
+  'Uber': /^UB-[A-Z0-9]{8}$/,
+  'Ola': /^OLA-[A-Z0-9]{6}$/,
+  'Rapido': /^RP-[A-Z0-9]{6}$/,
+  'Dunzo': /^DZ-[A-Z0-9]{6}$/,
+  'Zepto': /^ZP-[A-Z0-9]{6}$/,
+  'Porter': /^PT-[A-Z0-9]{6}$/,
+  'Other': /^GW-[A-Z0-9]{6}$/,
+};
+
+const STEP_TITLES = ['Select your age', 'Select your city', 'Where do you work?', 'Verify your gig identity', 'Location Permission', 'Save your progress'];
+const TOTAL_STEPS = 6;
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ActivateScreen() {
@@ -49,12 +77,28 @@ export default function ActivateScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // ── Verification state (Step 4) ──
+  const [workerId, setWorkerId] = useState('');
+  const [workerIdValid, setWorkerIdValid] = useState(false);
+  const [earningsScreenshot, setEarningsScreenshot] = useState<string | null>(null);
+  const [selfDeclare, setSelfDeclare] = useState(false);
+
   // Guard: if user already created, go straight to home
   useEffect(() => {
     loadOnboardingState().then((done) => {
       if (done) router.replace('/(worker-tabs)' as any);
     });
   }, []);
+
+  // Validate worker ID whenever it changes
+  useEffect(() => {
+    if (!platform || !workerId) {
+      setWorkerIdValid(false);
+      return;
+    }
+    const regex = PLATFORM_ID_REGEX[platform];
+    setWorkerIdValid(regex ? regex.test(workerId.toUpperCase()) : false);
+  }, [workerId, platform]);
 
   const filteredCities = CITIES.filter((c) =>
     c.toLowerCase().includes(citySearch.toLowerCase())
@@ -64,8 +108,9 @@ export default function ActivateScreen() {
     (step === 1 && age !== '') ||
     (step === 2 && city !== '') ||
     (step === 3 && platform !== '') ||
-    (step === 4 && locationGranted) ||
-    (step === 5 && name.trim() !== '' && phone.length >= 10);
+    (step === 4 && workerIdValid && selfDeclare) ||
+    (step === 5 && locationGranted) ||
+    (step === 6 && name.trim() !== '' && phone.length >= 10);
 
   const handleContinue = async () => {
     if (step < TOTAL_STEPS) {
@@ -94,6 +139,7 @@ export default function ActivateScreen() {
           zone,
           platform: platform || 'General',
           age: parseInt(age, 10),
+          workerId: workerId.toUpperCase(),
         });
         // 2. Buy the selected plan tier
         const tier = (plan || 'standard').toLowerCase();
@@ -107,6 +153,32 @@ export default function ActivateScreen() {
         setLoading(false);
       }
     }
+  };
+
+  const handlePickEarningsScreenshot = async () => {
+    try {
+      const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permResult.granted) {
+        Alert.alert('Permission Required', 'We need gallery access to upload your earnings screenshot.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        quality: 0.7,
+        allowsEditing: true,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        setEarningsScreenshot(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open image picker.');
+    }
+  };
+
+  const getWorkerIdPlaceholder = () => {
+    const prefix = PLATFORM_ID_PREFIX[platform] || 'GW';
+    const len = platform === 'Uber' ? 8 : 6;
+    return `${prefix}-${'X'.repeat(len)}`;
   };
 
   const progress = (step / (TOTAL_STEPS + 1)) * 100;
@@ -247,8 +319,140 @@ export default function ActivateScreen() {
               </View>
             )}
 
-            {/* STEP 4: Location Permission */}
+            {/* STEP 4: Gig Worker Verification */}
             {step === 4 && (
+              <View style={styles.stepContent}>
+                {/* Verification Header Badge */}
+                <View style={styles.verifyHeaderBadge}>
+                  <ShieldCheck size={20} color="#0066CC" />
+                  <Text style={styles.verifyHeaderText}>Identity Verification</Text>
+                </View>
+
+                {/* 1. Worker ID Input */}
+                <View style={styles.verifySection}>
+                  <View style={styles.verifySectionHeader}>
+                    <View style={styles.verifyStepBadge}>
+                      <Text style={styles.verifyStepNum}>1</Text>
+                    </View>
+                    <Text style={styles.verifySectionTitle}>Enter your {platform} Partner ID</Text>
+                  </View>
+                  <View style={[
+                    styles.verifyIdInput,
+                    workerIdValid && styles.verifyIdInputValid,
+                    workerId.length > 0 && !workerIdValid && styles.verifyIdInputInvalid,
+                  ]}>
+                    <Briefcase size={18} color={workerIdValid ? '#00A25B' : '#888'} />
+                    <TextInput
+                      style={styles.verifyIdText}
+                      placeholder={getWorkerIdPlaceholder()}
+                      placeholderTextColor="#BBB"
+                      value={workerId}
+                      onChangeText={(t) => setWorkerId(t.toUpperCase())}
+                      autoCapitalize="characters"
+                      maxLength={platform === 'Uber' ? 11 : 9}
+                    />
+                    {workerIdValid && (
+                      <View style={styles.verifyCheckCircle}>
+                        <Check size={14} color="#FFF" />
+                      </View>
+                    )}
+                  </View>
+                  {workerId.length > 0 && !workerIdValid && (
+                    <View style={styles.verifyErrorRow}>
+                      <AlertTriangle size={13} color="#DC2626" />
+                      <Text style={styles.verifyErrorText}>
+                        Format: {getWorkerIdPlaceholder()} (e.g., {PLATFORM_ID_PREFIX[platform]}-{platform === 'Uber' ? 'A1B2C3D4' : 'A1B2C3'})
+                      </Text>
+                    </View>
+                  )}
+                  {workerIdValid && (
+                    <View style={styles.verifySuccessRow}>
+                      <Check size={13} color="#059669" />
+                      <Text style={styles.verifySuccessText}>Valid {platform} Partner ID detected</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* 2. Earnings Screenshot Upload */}
+                <View style={styles.verifySection}>
+                  <View style={styles.verifySectionHeader}>
+                    <View style={styles.verifyStepBadge}>
+                      <Text style={styles.verifyStepNum}>2</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.verifySectionTitle}>Upload earnings screenshot</Text>
+                      <Text style={styles.verifySectionSubtitle}>Optional — speeds up verification</Text>
+                    </View>
+                  </View>
+                  {earningsScreenshot ? (
+                    <View style={styles.screenshotPreview}>
+                      <Image
+                        source={{ uri: earningsScreenshot }}
+                        style={styles.screenshotImage}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.screenshotOverlay}>
+                        <Check size={20} color="#FFF" />
+                        <Text style={styles.screenshotOverlayText}>Uploaded</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.screenshotRemove}
+                        onPress={() => setEarningsScreenshot(null)}
+                      >
+                        <X size={16} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.uploadBtn} onPress={handlePickEarningsScreenshot}>
+                      <Camera size={22} color="#0066CC" />
+                      <Text style={styles.uploadBtnText}>Choose from Gallery</Text>
+                      <Text style={styles.uploadBtnHint}>Screenshot of your {platform} earnings page</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* 3. Self-Declaration Checkbox */}
+                <View style={styles.verifySection}>
+                  <View style={styles.verifySectionHeader}>
+                    <View style={styles.verifyStepBadge}>
+                      <Text style={styles.verifyStepNum}>3</Text>
+                    </View>
+                    <Text style={styles.verifySectionTitle}>Self-declaration</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.declarationRow}
+                    onPress={() => setSelfDeclare(!selfDeclare)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, selfDeclare && styles.checkboxChecked]}>
+                      {selfDeclare && <Check size={14} color="#FFF" />}
+                    </View>
+                    <Text style={styles.declarationText}>
+                      I confirm I am an active gig worker on{' '}
+                      <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{platform}</Text>.
+                      Submitting false information may result in{' '}
+                      <Text style={{ fontWeight: '700', color: '#DC2626' }}>claim denial and account termination</Text>.
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Verification Summary */}
+                {workerIdValid && selfDeclare && (
+                  <View style={styles.verifyCompleteCard}>
+                    <ShieldCheck size={24} color="#059669" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.verifyCompleteTitle}>Verification Complete ✓</Text>
+                      <Text style={styles.verifyCompleteDesc}>
+                        Your {platform} identity has been verified. You're eligible for RiskWire coverage.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* STEP 5: Location Permission */}
+            {step === 5 && (
               <View style={styles.stepContent}>
                 <View style={styles.locationCard}>
                   <MapPin size={40} color="#0066CC" style={{ marginBottom: 16 }} />
@@ -293,8 +497,8 @@ export default function ActivateScreen() {
               </View>
             )}
 
-            {/* STEP 5: Name + Phone */}
-            {step === 5 && (
+            {/* STEP 6: Name + Phone */}
+            {step === 6 && (
               <View style={styles.stepContent}>
                 <View style={styles.floatField}>
                   <Text style={styles.floatLabel}>Your full name</Text>
@@ -391,6 +595,21 @@ export default function ActivateScreen() {
 
             {step === 4 && (
               <View style={styles.infoCard}>
+                <Text style={styles.infoEmoji}>🛡️</Text>
+                <Text style={styles.infoCardTitle}>Why we verify</Text>
+                <Text style={styles.infoCardDesc}>
+                  RiskWire is exclusively for <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>active gig workers</Text>.
+                  Verification ensures fair premiums and protects the insurance pool from misuse.
+                </Text>
+                <View style={styles.infoSeparator} />
+                <Text style={styles.infoCardDesc}>
+                  🔒 Your data is <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>encrypted</Text> and never shared with third parties.
+                </Text>
+              </View>
+            )}
+
+            {step === 5 && (
+              <View style={styles.infoCard}>
                 <Text style={styles.infoEmoji}>📍</Text>
                 <Text style={styles.infoCardDesc}>
                   Location helps the <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>AI Pricing Model</Text> determine if you operate in a safe zone from water logging or extreme heat.
@@ -398,7 +617,7 @@ export default function ActivateScreen() {
               </View>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <View style={styles.infoCard}>
                 <Text style={styles.infoEmoji}>💡</Text>
                 {[
@@ -584,6 +803,7 @@ const styles = StyleSheet.create({
   infoCardDesc: { fontSize: 12, color: '#555', lineHeight: 18 },
   infoCheckRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   infoCheckText: { fontSize: 12, color: '#1A1A1A', flex: 1 },
+  infoSeparator: { height: 1, backgroundColor: '#E5E9F2', marginVertical: 4 },
 
   // Trust footer
   trustFooter: {
@@ -615,5 +835,87 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9', paddingHorizontal: 16, paddingVertical: 12,
     borderRadius: 8, borderWidth: 1, borderColor: '#A5D6A7'
   },
-  locationSuccessText: { color: '#2E7D32', fontWeight: '700', fontSize: 14 }
+  locationSuccessText: { color: '#2E7D32', fontWeight: '700', fontSize: 14 },
+
+  // ── Verification Step (Step 4) Styles ──────────────────────────────
+  verifyHeaderBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE',
+  },
+  verifyHeaderText: { fontSize: 14, fontWeight: '700', color: '#0066CC' },
+
+  verifySection: {
+    backgroundColor: '#FFF', borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: '#E5E9F2',
+  },
+  verifySectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  verifyStepBadge: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#0066CC', alignItems: 'center', justifyContent: 'center',
+  },
+  verifyStepNum: { fontSize: 12, fontWeight: '800', color: '#FFF' },
+  verifySectionTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
+  verifySectionSubtitle: { fontSize: 11, color: '#888', marginTop: 2 },
+
+  verifyIdInput: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1.5, borderColor: BORDER, borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#FAFAFA',
+  },
+  verifyIdInputValid: { borderColor: '#059669', backgroundColor: '#F0FDF4' },
+  verifyIdInputInvalid: { borderColor: '#FBBF24', backgroundColor: '#FFFBEB' },
+  verifyIdText: { flex: 1, fontSize: 16, fontWeight: '700', color: '#1A1A1A', letterSpacing: 1.5 },
+  verifyCheckCircle: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center',
+  },
+  verifyErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingHorizontal: 4 },
+  verifyErrorText: { fontSize: 11, color: '#DC2626', flex: 1 },
+  verifySuccessRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingHorizontal: 4 },
+  verifySuccessText: { fontSize: 12, color: '#059669', fontWeight: '600' },
+
+  uploadBtn: {
+    borderWidth: 1.5, borderColor: '#BFDBFE', borderStyle: 'dashed',
+    borderRadius: 12, padding: 20, alignItems: 'center', gap: 8,
+    backgroundColor: '#F8FAFF',
+  },
+  uploadBtnText: { fontSize: 14, fontWeight: '700', color: '#0066CC' },
+  uploadBtnHint: { fontSize: 11, color: '#888', textAlign: 'center' },
+
+  screenshotPreview: {
+    borderRadius: 12, overflow: 'hidden', height: 120, position: 'relative',
+  },
+  screenshotImage: { width: '100%', height: '100%' },
+  screenshotOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(5, 150, 105, 0.85)', paddingVertical: 8, paddingHorizontal: 12,
+  },
+  screenshotOverlayText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  screenshotRemove: {
+    position: 'absolute', top: 8, right: 8,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center',
+  },
+
+  declarationRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: BORDER, backgroundColor: '#FFF',
+    alignItems: 'center', justifyContent: 'center', marginTop: 2,
+  },
+  checkboxChecked: { backgroundColor: '#0066CC', borderColor: '#0066CC' },
+  declarationText: { flex: 1, fontSize: 12, color: '#555', lineHeight: 19 },
+
+  verifyCompleteCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#ECFDF5', borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: '#A7F3D0',
+  },
+  verifyCompleteTitle: { fontSize: 14, fontWeight: '800', color: '#059669' },
+  verifyCompleteDesc: { fontSize: 11, color: '#065F46', lineHeight: 17, marginTop: 2 },
 });
