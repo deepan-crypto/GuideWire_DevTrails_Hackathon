@@ -1,5 +1,4 @@
 // Central API layer for RiskWire backend
-// Backend runs at http://localhost:8080
 
 const BASE_URL = 'https://backend-guidewire-devtrails-hackathon.onrender.com/api/v1';
 
@@ -27,13 +26,18 @@ export interface Rider {
   walletBalance: number;
   isPolicyActive: boolean;
   policyTier: string | null;
+  referralCode: string | null;
+  referredBy: string | null;
 }
 
 export interface PayoutLog {
   id: number;
   riderId: number;
   amount: number;
-  timestamp: string; // ISO datetime
+  timestamp: string;
+  triggerType: string | null;
+  zone: string | null;
+  claimNumber: string | null;
 }
 
 export interface PlanDetail {
@@ -43,9 +47,41 @@ export interface PlanDetail {
 
 export type QuoteResponse = Record<string, PlanDetail>;
 
+export interface ClaimTrackerResponse {
+  rider_id: number;
+  zone: string;
+  policy_active: boolean;
+  current_stage: string;
+  pipeline: {
+    monitoring_weather: boolean;
+    trigger_met: boolean;
+    validating_shift: boolean;
+    payout_sent: boolean;
+  };
+  trigger_type?: string;
+  weather?: { temp: number; rain: number };
+  payout_amount?: number;
+  payout_time?: string;
+  claim_number?: string;
+}
+
+export interface MarketStatusResponse {
+  crash_active: boolean;
+  action: string;
+  pro_tier_locked: boolean;
+  standard_tier_locked: boolean;
+  basic_tier_available: boolean;
+}
+
+export interface ReferralResponse {
+  code: string;
+  times_used: number;
+  reward_earned: number;
+  share_message: string;
+}
+
 // ── Rider endpoints ────────────────────────────────────────────────
 
-/** Register a new rider after activation form completion. Returns the Rider with its generated id. */
 export async function registerRider(data: {
   name: string;
   phone: string;
@@ -65,12 +101,10 @@ export async function registerRider(data: {
   return request<Rider>(`/rider/register?${params}`, { method: 'POST' });
 }
 
-/** Fetch a rider's full profile by id. */
 export async function getRider(riderId: number): Promise<Rider> {
   return request<Rider>(`/rider/${riderId}`);
 }
 
-/** Update rider personal details (name, phone, city, platform, age). */
 export async function updateRider(riderId: number, updates: Partial<Rider>): Promise<Rider> {
   return request<Rider>(`/rider/${riderId}`, {
     method: 'PUT',
@@ -78,19 +112,41 @@ export async function updateRider(riderId: number, updates: Partial<Rider>): Pro
   });
 }
 
-/** Get payout history for a rider, newest first. */
 export async function getPayouts(riderId: number): Promise<PayoutLog[]> {
   return request<PayoutLog[]>(`/rider/${riderId}/payouts`);
 }
 
 // ── Insurance endpoints ────────────────────────────────────────────
 
-/** Get pricing quote for all tiers for a rider's zone. */
 export async function getQuote(riderId: number): Promise<QuoteResponse> {
   return request<QuoteResponse>(`/insurance/quote?riderId=${riderId}`);
 }
 
-/** Purchase a policy tier (basic | standard | pro). Returns updated Rider. */
 export async function buyPolicy(riderId: number, tier: string): Promise<Rider> {
   return request<Rider>(`/insurance/buy?riderId=${riderId}&tier=${tier}`, { method: 'POST' });
+}
+
+// ── Claim Tracker ──────────────────────────────────────────────────
+
+export async function getClaimTracker(riderId: number): Promise<ClaimTrackerResponse> {
+  return request<ClaimTrackerResponse>(`/insurance/claim-tracker?riderId=${riderId}`);
+}
+
+// ── Market Status ──────────────────────────────────────────────────
+
+export async function getMarketStatus(): Promise<MarketStatusResponse> {
+  return request<MarketStatusResponse>(`/insurance/market-status`);
+}
+
+// ── Referral System ────────────────────────────────────────────────
+
+export async function generateReferral(riderId: number): Promise<ReferralResponse> {
+  return request<ReferralResponse>(`/insurance/referral/generate?riderId=${riderId}`, { method: 'POST' });
+}
+
+export async function redeemReferral(riderId: number, code: string): Promise<{ success: boolean; message: string }> {
+  return request<{ success: boolean; message: string }>(
+    `/insurance/referral/redeem?riderId=${riderId}&code=${code}`,
+    { method: 'POST' }
+  );
 }
