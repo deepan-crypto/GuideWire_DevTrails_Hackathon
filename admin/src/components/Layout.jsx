@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard, ShieldCheck, Wifi } from 'lucide-react'
+import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard, ShieldCheck, ShieldAlert, Wifi } from 'lucide-react'
 import { useAuth, ROLES } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationsContext'
 import NotificationPanel from './NotificationPanel'
@@ -25,6 +25,7 @@ const ALL_NAV = [
 const ALL_ADMIN = [
   { to: '/user-management', icon: Users,          label: 'User Management', route: 'user-management' },
   { to: '/analytics',       icon: LayoutDashboard, label: 'Analytics',      route: 'analytics' },
+  { to: '/fraud-audit',     icon: ShieldAlert,     label: 'Fraud Audit',    route: 'fraud-audit' },
 ]
 
 const ROLE_COLOR_CLASS = {
