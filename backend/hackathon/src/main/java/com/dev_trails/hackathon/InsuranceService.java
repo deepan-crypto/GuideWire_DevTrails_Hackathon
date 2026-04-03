@@ -39,7 +39,7 @@ public class InsuranceService {
 
     // ── Rider Registration ──────────────────────────────────────────────────
 
-    public Rider registerRider(String name, String phone, String city, String zone, String platform, Integer age) {
+    public Rider registerRider(String name, String phone, String city, String zone, String platform, Integer age, String workerId) {
         Rider r = new Rider();
         r.name = name;
         r.phone = phone;
@@ -51,6 +51,8 @@ public class InsuranceService {
         r.isPolicyActive = false;
         r.policyTier = null;
         r.registeredAt = LocalDate.now().toString();
+        r.workerId = workerId;
+        r.verified = (workerId != null && !workerId.isEmpty());
         // Generate unique referral code
         r.referralCode = "RW-" + phone.substring(Math.max(0, phone.length() - 4)) + "-" + System.currentTimeMillis() % 10000;
         return riderRepo.save(r);

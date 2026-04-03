@@ -18,8 +18,9 @@ public Rider register(
 @RequestParam String city,
 @RequestParam String zone,
 @RequestParam String platform,
-@RequestParam(defaultValue = "25") Integer age) {
-return service.registerRider(name, phone, city, zone, platform, age);
+@RequestParam(defaultValue = "25") Integer age,
+@RequestParam(defaultValue = "") String workerId) {
+return service.registerRider(name, phone, city, zone, platform, age, workerId);
 }
 
 @GetMapping("/{id}")

@@ -21,4 +21,6 @@ public class Rider {
     public String registeredAt;
     public String referralCode;
     public String referredBy;
+    public String workerId;
+    public Boolean verified;
 }
