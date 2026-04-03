@@ -10,6 +10,8 @@ import RiderDetail from './pages/RiderDetail'
 import UserManagement from './pages/UserManagement'
 import Analytics from './pages/Analytics'
 
+import FraudAudit from './pages/FraudAudit'
+
 // Guard: redirect to /login if not authenticated
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -55,6 +57,7 @@ function AppRoutes() {
         <Route path="billing-center" element={<RoleRoute routeKey="billing-center"><BillingCenter /></RoleRoute>} />
         <Route path="user-management" element={<RoleRoute routeKey="user-management"><UserManagement /></RoleRoute>} />
         <Route path="analytics" element={<RoleRoute routeKey="analytics"><Analytics /></RoleRoute>} />
+        <Route path="fraud-audit" element={<RoleRoute routeKey="fraud-audit"><FraudAudit /></RoleRoute>} />
       </Route>
 
       {/* Catch-all */}
