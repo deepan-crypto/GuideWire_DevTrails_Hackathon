@@ -28,6 +28,8 @@ export interface Rider {
   policyTier: string | null;
   referralCode: string | null;
   referredBy: string | null;
+  workerId: string | null;
+  verified: boolean;
 }
 
 export interface PayoutLog {
@@ -89,6 +91,7 @@ export async function registerRider(data: {
   zone: string;
   platform: string;
   age: number;
+  workerId?: string;
 }): Promise<Rider> {
   const params = new URLSearchParams({
     name: data.name,
@@ -97,6 +100,7 @@ export async function registerRider(data: {
     zone: data.zone,
     platform: data.platform,
     age: String(data.age),
+    workerId: data.workerId || '',
   });
   return request<Rider>(`/rider/register?${params}`, { method: 'POST' });
 }
