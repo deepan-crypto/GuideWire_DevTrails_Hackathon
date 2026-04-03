@@ -56,3 +56,25 @@ export async function fetchTransactions() {
 export async function fetchMonthlyTrend() {
   return await fetchJSON(`${API_BASE}/billing/monthly-trend`)
 }
+
+// ── Fraud Audit ────────────────────────────────────────────────
+
+export async function fetchFraudLogs() {
+  return await fetchJSON(`${API_BASE}/fraud-logs`)
+}
+
+export async function fetchBlockedFraudLogs() {
+  return await fetchJSON(`${API_BASE}/fraud-logs/blocked`)
+}
+
+// ── Risk Heatmap ───────────────────────────────────────────────
+
+export async function fetchRiskHeatmap() {
+  return await fetchJSON(`${API_BASE}/risk-heatmap`)
+}
+
+// ── Market Status ──────────────────────────────────────────────
+
+export async function fetchMarketStatus() {
+  return await fetchJSON(`${API_BASE}/market-status`)
+}
