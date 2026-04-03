@@ -1,5 +1,5 @@
 {
-  "name": "bolt-expo-starter",
+  "name": "riskwire",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
@@ -25,6 +25,7 @@
     "expo-haptics": "~15.0.7",
     "expo-linear-gradient": "~15.0.7",
     "expo-linking": "~8.0.8",
+    "expo-location": "^55.1.6",
     "expo-router": "~6.0.8",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.10",

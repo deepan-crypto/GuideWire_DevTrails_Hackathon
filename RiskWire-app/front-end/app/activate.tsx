@@ -7,12 +7,14 @@ import {
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
+  Platform as OSPlatform,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronDown, Search, X, Check, Star } from 'lucide-react-native';
+import { ChevronDown, Search, X, Check, Star, MapPin, Briefcase } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { setOnboardingComplete, isOnboardingComplete, loadOnboardingState } from '@/utils/onboardingState';
 import { registerRider, buyPolicy } from '@/utils/api';
 
@@ -26,8 +28,10 @@ const CITIES = [
   'Thane', 'Gurgaon', 'Ghaziabad', 'Kolkata', 'Ahmedabad',
 ];
 
-const STEP_TITLES = ['Select your age', 'Select your city', 'Save your progress'];
-const TOTAL_STEPS = 3;
+const PLATFORMS = ['Swiggy', 'Zomato', 'Uber', 'Ola', 'Rapido', 'Dunzo', 'Zepto', 'Porter', 'Other'];
+
+const STEP_TITLES = ['Select your age', 'Select your city', 'Where do you work?', 'Location Permission', 'Save your progress'];
+const TOTAL_STEPS = 5;
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ActivateScreen() {
@@ -36,10 +40,12 @@ export default function ActivateScreen() {
   const [step, setStep] = useState(1);
   const [age, setAge] = useState('');
   const [city, setCity] = useState('');
+  const [platform, setPlatform] = useState('');
   const [citySearch, setCitySearch] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [showAgePicker, setShowAgePicker] = useState(false);
+  const [locationGranted, setLocationGranted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,7 +63,9 @@ export default function ActivateScreen() {
   const canContinue =
     (step === 1 && age !== '') ||
     (step === 2 && city !== '') ||
-    (step === 3 && name.trim() !== '' && phone.length >= 10);
+    (step === 3 && platform !== '') ||
+    (step === 4 && locationGranted) ||
+    (step === 5 && name.trim() !== '' && phone.length >= 10);
 
   const handleContinue = async () => {
     if (step < TOTAL_STEPS) {
@@ -84,7 +92,7 @@ export default function ActivateScreen() {
           phone: phone.trim(),
           city,
           zone,
-          platform: 'General',
+          platform: platform || 'General',
           age: parseInt(age, 10),
         });
         // 2. Buy the selected plan tier
@@ -106,7 +114,7 @@ export default function ActivateScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={OSPlatform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* ── Top Bar ── */}
       <View style={styles.topBar}>
@@ -221,8 +229,72 @@ export default function ActivateScreen() {
               </View>
             )}
 
-            {/* STEP 3: Name + Phone */}
+            {/* STEP 3: Platform */}
             {step === 3 && (
+              <View style={styles.stepContent}>
+                <Text style={styles.sectionLabel}>Select your main platform</Text>
+                <View style={styles.chipGrid}>
+                  {PLATFORMS.map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.chip, platform === p && styles.chipSelected]}
+                      onPress={() => setPlatform(p)}
+                    >
+                      <Text style={[styles.chipText, platform === p && styles.chipTextSel]}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* STEP 4: Location Permission */}
+            {step === 4 && (
+              <View style={styles.stepContent}>
+                <View style={styles.locationCard}>
+                  <MapPin size={40} color="#0066CC" style={{ marginBottom: 16 }} />
+                  <Text style={styles.locationTitle}>Location Required</Text>
+                  <Text style={styles.locationDesc}>
+                    RiskWire's actuarial engine uses hyper-local weather data to calculate your dynamic premium (e.g. ₹2 less dynamically if you are in a safe zone).
+                  </Text>
+                  <Text style={styles.locationDesc}>
+                    We need your location permission to map you to the correct micro-zone and provide parametric triggers.
+                  </Text>
+                  
+                  {loading && !locationGranted ? (
+                    <ActivityIndicator size="small" color="#0066CC" style={{ marginTop: 20 }} />
+                  ) : locationGranted ? (
+                    <View style={styles.locationSuccessBox}>
+                      <Check size={20} color="#00A25B" />
+                      <Text style={styles.locationSuccessText}>Location access granted!</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.locationBtn} 
+                      onPress={async () => {
+                        setLoading(true);
+                        try {
+                          let { status } = await Location.requestForegroundPermissionsAsync();
+                          if (status === 'granted') {
+                            setLocationGranted(true);
+                          } else {
+                            setError('Location permission is required for accurate risk pricing.');
+                          }
+                        } catch (e) {
+                          setError('Failed to request location. Please try again.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      <Text style={styles.locationBtnText}>Grant Permission</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* STEP 5: Name + Phone */}
+            {step === 5 && (
               <View style={styles.stepContent}>
                 <View style={styles.floatField}>
                   <Text style={styles.floatLabel}>Your full name</Text>
@@ -310,6 +382,24 @@ export default function ActivateScreen() {
 
             {step === 3 && (
               <View style={styles.infoCard}>
+                <Text style={styles.infoEmoji}>🛵</Text>
+                <Text style={styles.infoCardDesc}>
+                  Whether you deliver food or drive passengers, we customize your risk profile and premium according to your job nature!
+                </Text>
+              </View>
+            )}
+
+            {step === 4 && (
+              <View style={styles.infoCard}>
+                <Text style={styles.infoEmoji}>📍</Text>
+                <Text style={styles.infoCardDesc}>
+                  Location helps the <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>AI Pricing Model</Text> determine if you operate in a safe zone from water logging or extreme heat.
+                </Text>
+              </View>
+            )}
+
+            {step === 5 && (
+              <View style={styles.infoCard}>
                 <Text style={styles.infoEmoji}>💡</Text>
                 {[
                   '92+ plans found',
@@ -370,7 +460,7 @@ const styles = StyleSheet.create({
 
   // Top bar
   topBar: {
-    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingTop: OSPlatform.OS === 'ios' ? 52 : 36,
     paddingHorizontal: 20,
     paddingBottom: 12,
     flexDirection: 'row',
@@ -508,4 +598,22 @@ const styles = StyleSheet.create({
   trustStatValue: { fontSize: 16, fontWeight: '800', color: '#0066CC' },
   trustStatLabel: { fontSize: 10, color: '#666', textAlign: 'center', marginTop: 2 },
   errorText: { fontSize: 13, color: '#DC2626', textAlign: 'center', marginTop: 8, fontWeight: '600' },
+  locationCard: {
+    padding: 24, paddingVertical: 32, alignItems: 'center', 
+    backgroundColor: '#FAFCFF', borderRadius: 12,
+    borderWidth: 1, borderColor: '#D0E3F5',
+  },
+  locationTitle: { fontSize: 18, fontWeight: '800', color: '#1A1A1A', marginBottom: 16, textAlign: 'center' },
+  locationDesc: { fontSize: 13, color: '#444', textAlign: 'center', marginBottom: 12, lineHeight: 20 },
+  locationBtn: {
+    backgroundColor: '#0066CC', paddingHorizontal: 24, paddingVertical: 14,
+    borderRadius: 8, marginTop: 16, width: '100%', alignItems: 'center'
+  },
+  locationBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  locationSuccessBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24,
+    backgroundColor: '#E8F5E9', paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: 8, borderWidth: 1, borderColor: '#A5D6A7'
+  },
+  locationSuccessText: { color: '#2E7D32', fontWeight: '700', fontSize: 14 }
 });
