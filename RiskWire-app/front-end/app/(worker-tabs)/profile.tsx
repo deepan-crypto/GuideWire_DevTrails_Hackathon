@@ -1,12 +1,19 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, Modal, ActivityIndicator, Alert, Share,
+} from 'react-native';
 import {
   User, Shield, Edit3, ChevronRight, Phone, MapPin,
   Briefcase, IndianRupee, FileText, Check, LogOut, X,
+  Gift, Copy, Users,
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { getCachedRiderId, clearOnboardingState } from '@/utils/onboardingState';
-import { getRider, updateRider, buyPolicy, Rider } from '@/utils/api';
+import {
+  getRider, updateRider, buyPolicy, generateReferral, redeemReferral,
+  Rider, ReferralResponse,
+} from '@/utils/api';
 
 const PB_NAVY   = '#0F4C81';
 const PB_GREEN  = '#00C37B';
@@ -23,6 +30,7 @@ export default function ProfileTab() {
   const [loading, setLoading]     = useState(true);
   const [editModal, setEditModal] = useState(false);
   const [planModal, setPlanModal] = useState(false);
+  const [referralModal, setReferralModal] = useState(false);
   const [saving, setSaving]       = useState(false);
 
   // Edit state
@@ -31,6 +39,11 @@ export default function ProfileTab() {
   const [editCity, setEditCity]         = useState('');
   const [editPlatform, setEditPlatform] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('standard');
+
+  // Referral state
+  const [referralData, setReferralData] = useState<ReferralResponse | null>(null);
+  const [redeemCode, setRedeemCode] = useState('');
+  const [referralLoading, setReferralLoading] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -78,6 +91,45 @@ export default function ProfileTab() {
   const handleLogout = async () => {
     await clearOnboardingState();
     router.replace('/(tabs)' as any);
+  };
+
+  const handleLoadReferral = async () => {
+    if (!rider) return;
+    setReferralLoading(true);
+    try {
+      const data = await generateReferral(rider.id);
+      setReferralData(data);
+    } catch (e) {
+      // fail silently
+    } finally {
+      setReferralLoading(false);
+    }
+  };
+
+  const handleShareReferral = async () => {
+    if (!referralData) return;
+    try {
+      await Share.share({
+        message: referralData.share_message,
+      });
+    } catch (e) {
+      // cancelled
+    }
+  };
+
+  const handleRedeemCode = async () => {
+    if (!rider || !redeemCode.trim()) return;
+    setReferralLoading(true);
+    try {
+      const result = await redeemReferral(rider.id, redeemCode.trim());
+      Alert.alert('🎉 Success!', result.message || '₹50 added to your wallet!');
+      setRedeemCode('');
+      loadProfile(); // Refresh wallet balance
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Invalid referral code');
+    } finally {
+      setReferralLoading(false);
+    }
   };
 
   const curPlan = PLANS.find(p => p.id === selectedPlan) ?? PLANS[1];
@@ -165,6 +217,24 @@ export default function ProfileTab() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Referral Section ── */}
+        <View style={styles.referralCard}>
+          <View style={styles.referralHeader}>
+            <Gift size={20} color="#FF9800" />
+            <Text style={styles.cardTitle}>Refer & Earn</Text>
+          </View>
+          <Text style={styles.referralDesc}>
+            Invite fellow gig workers and earn ₹25 per referral. They get ₹50 bonus!
+          </Text>
+          <TouchableOpacity
+            style={styles.referralBtn}
+            onPress={() => { setReferralModal(true); handleLoadReferral(); }}
+          >
+            <Users size={16} color="#FFF" />
+            <Text style={styles.referralBtnText}>View My Referral Code</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <LogOut size={18} color='#EF4444' />
@@ -246,6 +316,71 @@ export default function ProfileTab() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ── Referral Modal ── */}
+      <Modal visible={referralModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Refer & Earn</Text>
+            <TouchableOpacity onPress={() => setReferralModal(false)}>
+              <X size={24} color='#666' />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {referralLoading && !referralData ? (
+              <ActivityIndicator size="large" color={PB_NAVY} style={{ marginTop: 40 }} />
+            ) : referralData ? (
+              <>
+                <View style={styles.referralCodeCard}>
+                  <Text style={styles.referralCodeLabel}>Your Referral Code</Text>
+                  <View style={styles.referralCodeRow}>
+                    <Text style={styles.referralCodeValue}>{referralData.code}</Text>
+                    <TouchableOpacity style={styles.copyBtn} onPress={handleShareReferral}>
+                      <Copy size={16} color={PB_NAVY} />
+                      <Text style={styles.copyBtnText}>Share</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.referralStatsRow}>
+                  <View style={styles.referralStatBox}>
+                    <Text style={styles.referralStatVal}>{referralData.times_used}</Text>
+                    <Text style={styles.referralStatLabel}>Referrals</Text>
+                  </View>
+                  <View style={styles.referralStatBox}>
+                    <Text style={[styles.referralStatVal, { color: PB_GREEN }]}>₹{referralData.reward_earned}</Text>
+                    <Text style={styles.referralStatLabel}>Earned</Text>
+                  </View>
+                </View>
+
+                <View style={styles.referralDivider} />
+                <Text style={styles.referralRedeemTitle}>Have a referral code?</Text>
+                <View style={styles.redeemRow}>
+                  <TextInput
+                    style={styles.redeemInput}
+                    placeholder="Enter code"
+                    placeholderTextColor="#9CA3AF"
+                    value={redeemCode}
+                    onChangeText={setRedeemCode}
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity
+                    style={[styles.redeemBtn, !redeemCode.trim() && { opacity: 0.5 }]}
+                    onPress={handleRedeemCode}
+                    disabled={!redeemCode.trim() || referralLoading}
+                  >
+                    <Text style={styles.redeemBtnText}>{referralLoading ? '...' : 'Redeem'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <Text style={{ color: '#666', textAlign: 'center', marginTop: 40 }}>
+                Could not load referral data
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,6 +428,47 @@ const styles = StyleSheet.create({
   activePillText: { fontSize: 12, color: PB_GREEN, fontWeight: '700' },
   changePlanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: '#FFF5F0', borderRadius: 12 },
   changePlanText: { fontSize: 14, color: PB_ORANGE, fontWeight: '700' },
+
+  // ── Referral Card ──
+  referralCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: '#E5E9F2',
+  },
+  referralHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 0 },
+  referralDesc: { fontSize: 13, color: '#666', lineHeight: 20, marginBottom: 14 },
+  referralBtn: {
+    backgroundColor: '#FF9800', borderRadius: 12, paddingVertical: 13,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  referralBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+
+  // ── Referral Modal ──
+  referralCodeCard: {
+    backgroundColor: '#FFF8E1', borderRadius: 14, padding: 20,
+    borderWidth: 1, borderColor: '#FFE082', alignItems: 'center',
+  },
+  referralCodeLabel: { fontSize: 13, color: '#5D4037', fontWeight: '600', marginBottom: 12 },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  referralCodeValue: { fontSize: 24, fontWeight: '900', color: '#E65100', letterSpacing: 1 },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#E5E9F2' },
+  copyBtnText: { fontSize: 13, color: PB_NAVY, fontWeight: '700' },
+  referralStatsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  referralStatBox: {
+    flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16,
+    alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9',
+  },
+  referralStatVal: { fontSize: 22, fontWeight: '900', color: '#1A1A24', marginBottom: 4 },
+  referralStatLabel: { fontSize: 12, color: '#8898AA' },
+  referralDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 20 },
+  referralRedeemTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A24', marginBottom: 12 },
+  redeemRow: { flexDirection: 'row', gap: 10 },
+  redeemInput: {
+    flex: 1, backgroundColor: '#F8F9FA', borderRadius: 12, paddingHorizontal: 16,
+    paddingVertical: 14, fontSize: 15, color: '#1A1A24', borderWidth: 1, borderColor: '#E5E5E5',
+  },
+  redeemBtn: { backgroundColor: PB_GREEN, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
+  redeemBtnText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: '#FEF2F2', borderRadius: 14, paddingVertical: 16,
