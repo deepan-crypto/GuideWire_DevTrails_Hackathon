@@ -29,8 +29,6 @@ export default function TabLayout() {
     }, [])
   );
 
-  // When user is created we redirect away, so render nothing meaningful.
-  // href: null hides the tab. Show all tabs only for new (pre-activation) users.
   return (
     <Tabs
       screenOptions={{

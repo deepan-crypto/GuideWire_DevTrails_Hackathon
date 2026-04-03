@@ -24,6 +24,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "android": {
+      "package": "com.deepang1902.boltexponativewind"
     }
   }
 }
