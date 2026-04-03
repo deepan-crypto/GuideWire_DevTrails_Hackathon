@@ -30,6 +30,7 @@ export default function RootLayout() {
         <Stack.Screen name="(worker-tabs)" />
         <Stack.Screen name="plans" />
         <Stack.Screen name="activate" />
+        <Stack.Screen name="payment" />
         <Stack.Screen name="dashboard" />
         <Stack.Screen name="+not-found" />
       </Stack>
