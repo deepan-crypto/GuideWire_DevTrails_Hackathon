@@ -8,7 +8,7 @@ export const ROLES = {
     initials: 'SA',
     color: 'bg-purple-600',
     description: 'Full access to all modules',
-    allowedRoutes: ['policy-center', 'claim-center', 'billing-center', 'user-management', 'analytics'],
+    allowedRoutes: ['policy-center', 'claim-center', 'billing-center', 'user-management', 'analytics', 'fraud-audit'],
   },
   claims_manager: {
     id: 'claims_manager',
