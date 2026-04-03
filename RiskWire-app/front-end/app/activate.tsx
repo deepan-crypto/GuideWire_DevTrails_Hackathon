@@ -66,9 +66,18 @@ export default function ActivateScreen() {
       setLoading(true);
       setError('');
       try {
-        // Map city to a zone (urban for major metros, otherwise rural)
-        const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
-        const zone = urbanCities.includes(city) ? 'urban' : 'urban'; // default urban for demo
+        // Map city to a micro-zone ID matching the backend actuarial engine zones
+        const cityZoneMap: Record<string, string> = {
+          'Delhi': 'MZ-DEL-04', 'Gurgaon': 'MZ-DEL-09', 'Ghaziabad': 'MZ-DEL-09',
+          'Mumbai': 'MZ-MUM-12', 'Thane': 'MZ-MUM-12',
+          'Bengaluru': 'MZ-BLR-07',
+          'Hyderabad': 'MZ-HYD-03',
+          'Chennai': 'MZ-CHN-05', 'Kanchipuram': 'MZ-CHN-05', 'Tiruvallur': 'MZ-CHN-11',
+          'Pune': 'MZ-PUN-02',
+          'Kolkata': 'MZ-KOL-01',
+          'Ahmedabad': 'MZ-HYD-08',
+        };
+        const zone = cityZoneMap[city] || 'MZ-DEL-04';
         // 1. Register the rider
         const rider = await registerRider({
           name: name.trim(),

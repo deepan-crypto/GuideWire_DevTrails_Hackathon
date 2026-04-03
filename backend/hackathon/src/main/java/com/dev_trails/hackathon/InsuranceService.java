@@ -3,6 +3,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -11,14 +12,16 @@ import java.util.Map;
 public class InsuranceService {
 private final RiderRepository riderRepo;
 private final PayoutLogRepository payoutLogRepo;
+private final PolicyRepository policyRepo;
 private final RestTemplate restTemplate;
 
 @Value("${oracle.base-url}")
 private String oracleBaseUrl;
 
-public InsuranceService(RiderRepository riderRepo, PayoutLogRepository payoutLogRepo, RestTemplate restTemplate) {
+public InsuranceService(RiderRepository riderRepo, PayoutLogRepository payoutLogRepo, PolicyRepository policyRepo, RestTemplate restTemplate) {
 this.riderRepo = riderRepo;
 this.payoutLogRepo = payoutLogRepo;
+this.policyRepo = policyRepo;
 this.restTemplate = restTemplate;
 }
 
@@ -33,6 +36,7 @@ r.age = age;
 r.walletBalance = 500.0;
 r.isPolicyActive = false;
 r.policyTier = null;
+r.registeredAt = java.time.LocalDate.now().toString();
 return riderRepo.save(r);
 }
 
@@ -79,6 +83,7 @@ return fallback;
 public Rider buyPolicy(Long riderId, String tier) {
 Rider r = getRider(riderId);
 double premium = 0;
+String planName = "";
 try {
 OracleForecastResponse res = restTemplate.getForObject(
 oracleBaseUrl + "/api/v1/pricing/forecast-quote?zone=" + r.zone,
@@ -92,10 +97,35 @@ case "STANDARD" -> 143.0;
 default -> 95.0;
 };
 }
+planName = switch (tier.toUpperCase()) {
+case "PRO" -> "Heat Shield Pro";
+case "STANDARD" -> "Rain Guard Plus";
+default -> "Heat Shield Basic";
+};
 r.walletBalance -= premium;
 r.isPolicyActive = true;
 r.policyTier = tier.toUpperCase();
-return riderRepo.save(r);
+Rider saved = riderRepo.save(r);
+// Create a Policy record so the admin PolicyCenter can see this user
+Policy p = new Policy();
+p.policyNumber = "POL-GW-" + LocalDate.now().getYear() + "-" + String.format("%03d", saved.id);
+p.riderId = saved.id;
+p.riderName = saved.name;
+p.zone = saved.zone + " (" + saved.city + ")";
+p.plan = planName;
+p.premium = "\u20B9" + (int) premium + "/day";
+p.riskScore = 50;
+p.status = "Active";
+p.startDate = LocalDate.now().toString();
+p.phone = saved.phone;
+p.email = saved.name.toLowerCase().replaceAll("\\s+", ".") + "@gmail.com";
+p.address = saved.city;
+p.birthdate = "2000-01-01";
+p.customerSince = LocalDate.now().toString();
+p.accountTier = tier.toUpperCase().equals("PRO") ? "Gold" : (tier.toUpperCase().equals("STANDARD") ? "Silver" : "Bronze");
+p.delinquencyStatus = "NO";
+policyRepo.save(p);
+return saved;
 }
 
 @Scheduled(cron = "0 0 * * * *")

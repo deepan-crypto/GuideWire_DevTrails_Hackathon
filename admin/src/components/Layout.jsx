@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard, ShieldCheck } from 'lucide-react'
+import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard, ShieldCheck, Wifi } from 'lucide-react'
 import { useAuth, ROLES } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationsContext'
 import NotificationPanel from './NotificationPanel'
@@ -205,11 +205,32 @@ function Header() {
 }
 
 export default function Layout() {
+  const [serverReady, setServerReady] = useState(false)
+
+  // Warm up the Render.com free-tier backend the instant the dashboard loads.
+  // This fires a cheap ping so the server is awake by the time the user
+  // navigates to PolicyCenter / ClaimCenter / BillingCenter.
+  useEffect(() => {
+    const API = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('/admin', '')
+      : 'https://backend-guidewire-devtrails-hackathon.onrender.com/api/v1'
+    fetch(`${API}/admin/riders`, { method: 'GET' })
+      .then(() => setServerReady(true))
+      .catch(() => setServerReady(false))
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
+        {/* Thin status bar — only shown while server is cold-starting */}
+        {!serverReady && (
+          <div className="flex items-center gap-2 px-5 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-800">
+            <Wifi className="w-3.5 h-3.5 animate-pulse text-amber-500" />
+            <span>Backend waking up — data will appear shortly. This only happens after a period of inactivity.</span>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto p-5 bg-gw-bg relative">
           <Outlet />
         </main>

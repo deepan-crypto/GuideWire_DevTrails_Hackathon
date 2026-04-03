@@ -8,11 +8,16 @@ private final PolicyRepository policyRepo;
 private final ClaimRepository claimRepo;
 private final BillingTransactionRepository billingRepo;
 private final PayoutLogRepository payoutLogRepo;
-public AdminService(PolicyRepository policyRepo, ClaimRepository claimRepo, BillingTransactionRepository billingRepo, PayoutLogRepository payoutLogRepo) {
+private final RiderRepository riderRepo;
+public AdminService(PolicyRepository policyRepo, ClaimRepository claimRepo, BillingTransactionRepository billingRepo, PayoutLogRepository payoutLogRepo, RiderRepository riderRepo) {
 this.policyRepo = policyRepo;
 this.claimRepo = claimRepo;
 this.billingRepo = billingRepo;
 this.payoutLogRepo = payoutLogRepo;
+this.riderRepo = riderRepo;
+}
+public List<Rider> getAllRiders() {
+return riderRepo.findAll();
 }
 public List<Policy> getAllPolicies() {
 return policyRepo.findAll();

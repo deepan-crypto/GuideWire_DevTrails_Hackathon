@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPolicies } from '../services/api'
-import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 
 function RiskBadge({ score }) {
   let color = 'bg-green-100 text-green-700 border-green-200'
@@ -36,8 +36,10 @@ export default function PolicyCenter() {
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState(null)
   const [policies, setPolicies] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    setLoading(true)
     fetchPolicies().then(data => {
       if (data && data.length > 0) {
         const mapped = data.map(p => ({
@@ -46,7 +48,7 @@ export default function PolicyCenter() {
         }))
         setPolicies(mapped)
       }
-    })
+    }).finally(() => setLoading(false))
   }, [])
 
   const filtered = policies.filter(p =>
@@ -78,6 +80,14 @@ export default function PolicyCenter() {
         <div className="fixed top-4 right-4 z-50 bg-gw-header text-white px-4 py-2.5 rounded shadow-lg text-[12px] font-medium flex items-center gap-2 animate-[fadeIn_0.3s_ease-out]">
           <CheckCircle className="w-4 h-4 text-green-400" />
           {toast}
+        </div>
+      )}
+
+      {/* Server cold-start banner */}
+      {loading && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 mb-4 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-800">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <span><span className="font-semibold">Connecting to server…</span> The backend may take up to 30s to wake from sleep. Data will load automatically.</span>
         </div>
       )}
 

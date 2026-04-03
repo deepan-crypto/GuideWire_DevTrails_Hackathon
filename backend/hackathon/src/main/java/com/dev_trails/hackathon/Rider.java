@@ -18,4 +18,5 @@ public Integer age;
 public Double walletBalance;
 public Boolean isPolicyActive;
 public String policyTier;
+public String registeredAt;
 }

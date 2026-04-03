@@ -9,6 +9,10 @@ private final AdminService service;
 public AdminController(AdminService service) {
 this.service = service;
 }
+@GetMapping("/riders")
+public List<Rider> getRiders() {
+return service.getAllRiders();
+}
 @GetMapping("/policies")
 public List<Policy> getPolicies(@RequestParam(required=false) String status) {
 if (status != null) return service.getActivePolicies();

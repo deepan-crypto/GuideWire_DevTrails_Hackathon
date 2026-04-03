@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchBillingSummary, fetchTransactions, fetchMonthlyTrend } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
-import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle, Loader2 } from 'lucide-react'
 
 function StatCard({ label, value, change, positive, icon: Icon, accent }) {
   return (
@@ -50,19 +50,23 @@ export default function BillingCenter() {
   const [monthlyTrend, setMonthlyTrend] = useState([])
   const [recentTransactions, setRecentTransactions] = useState([])
   const [toast, setToast] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchBillingSummary().then(data => { if (data) setSummary(data) })
-    fetchMonthlyTrend().then(data => { if (data && data.length > 0) setMonthlyTrend(data) })
-    fetchTransactions().then(data => {
-      if (data && data.length > 0) {
-        const mapped = data.map(t => ({
-          id: t.txnId, type: t.type, rider: t.riderName, amount: t.amount,
-          date: t.date, description: t.description
-        }))
-        setRecentTransactions(mapped)
-      }
-    })
+    setLoading(true)
+    Promise.all([
+      fetchBillingSummary().then(data => { if (data) setSummary(data) }),
+      fetchMonthlyTrend().then(data => { if (data && data.length > 0) setMonthlyTrend(data) }),
+      fetchTransactions().then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map(t => ({
+            id: t.txnId, type: t.type, rider: t.riderName, amount: t.amount,
+            date: t.date, description: t.description
+          }))
+          setRecentTransactions(mapped)
+        }
+      })
+    ]).finally(() => setLoading(false))
   }, [])
 
   const handleExportLedger = () => {
@@ -94,6 +98,14 @@ export default function BillingCenter() {
         <div className="fixed top-4 right-4 z-50 bg-gw-header text-white px-4 py-2.5 rounded shadow-lg text-[12px] font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-green-400" />
           {toast}
+        </div>
+      )}
+
+      {/* Server cold-start banner */}
+      {loading && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 mb-4 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-800">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <span><span className="font-semibold">Connecting to server…</span> The backend may take up to 30s to wake from sleep. Financial data will load automatically.</span>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchTriggerZones, fetchApprovalLog } from '../services/api'
-import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw } from 'lucide-react'
+import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw, Loader2 } from 'lucide-react'
 
 function LivePulse() {
   const [visible, setVisible] = useState(true)
@@ -80,19 +80,23 @@ export default function ClaimCenter() {
   const [zones, setZones] = useState([])
   const [liveLog, setLiveLog] = useState([])
   const [timer, setTimer] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) })
-    fetchApprovalLog().then(data => {
-      if (data && data.length > 0) {
-        const mapped = data.map(c => ({
-          id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
-          zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
-          status: c.status, paidAt: c.approvedAt || 'Pending'
-        }))
-        setLiveLog(mapped)
-      }
-    })
+    setLoading(true)
+    Promise.all([
+      fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) }),
+      fetchApprovalLog().then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map(c => ({
+            id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
+            zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
+            status: c.status, paidAt: c.approvedAt || 'Pending'
+          }))
+          setLiveLog(mapped)
+        }
+      })
+    ]).finally(() => setLoading(false))
   }, [])
 
   // Simulate live log appending
@@ -107,6 +111,14 @@ export default function ClaimCenter() {
 
   return (
     <div>
+      {/* Server cold-start banner */}
+      {loading && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 mb-4 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-800">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <span><span className="font-semibold">Connecting to server…</span> The backend may take up to 30s to wake from sleep. Trigger data will load automatically.</span>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[11px] text-gw-text-muted mb-3">
         <span>ClaimCenter</span>

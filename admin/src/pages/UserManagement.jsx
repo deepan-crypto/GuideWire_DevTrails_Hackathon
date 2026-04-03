@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw, Loader2 } from 'lucide-react'
+import { fetchRiders } from '../services/api'
 
 /* ── Mock data (fallback when backend is unavailable) ──────────────────── */
 const MOCK_RIDERS = [
@@ -95,13 +96,18 @@ export default function UserManagement() {
   const [search, setSearch] = useState('')
   const [riders, setRiders] = useState(MOCK_RIDERS)
   const [toast, setToast] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || 'https://backend-guidewire-devtrails-hackathon.onrender.com/api/v1/admin'
-    fetch(`${BASE_URL}/riders`)
-      .then(r => r.json())
+  const loadRiders = () => {
+    setLoading(true)
+    fetchRiders()
       .then(data => { if (data && data.length > 0) setRiders(data) })
       .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadRiders()
   }, [])
 
   const filteredRiders = riders.filter(r =>
@@ -130,6 +136,14 @@ export default function UserManagement() {
         </div>
       )}
 
+      {/* Cold-start banner — shown until real data arrives */}
+      {loading && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 mb-4 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-800">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <span><span className="font-semibold">Connecting to server…</span> Showing cached data. Live rider records will replace this shortly.</span>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -144,7 +158,7 @@ export default function UserManagement() {
             <Download className="w-3.5 h-3.5" /> Export
           </button>
           <button
-            onClick={() => showToast('Data refreshed')}
+            onClick={() => { loadRiders(); showToast('Data refreshed') }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-semibold hover:bg-blue-700"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh

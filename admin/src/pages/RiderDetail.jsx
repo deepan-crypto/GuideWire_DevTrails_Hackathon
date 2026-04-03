@@ -245,8 +245,8 @@ export default function RiderDetail() {
                     <tr><td colSpan={6} className="px-4 py-4 text-center text-[11.5px] text-gw-text-muted">No claims filed</td></tr>
                   ) : (
                     claims.map((claim, idx) => (
-                      <tr key={claim.claimId} className={`hover:bg-gw-blue-light/30 transition-colors ${idx % 2 === 1 ? 'bg-gw-bg/20' : ''}`}>
-                        <td className="px-4 py-2 text-[11.5px] font-mono text-gw-blue font-semibold">{claim.claimId}</td>
+                      <tr key={claim.claimNumber} className={`hover:bg-gw-blue-light/30 transition-colors ${idx % 2 === 1 ? 'bg-gw-bg/20' : ''}`}>
+                        <td className="px-4 py-2 text-[11.5px] font-mono text-gw-blue font-semibold">{claim.claimNumber}</td>
                         <td className="px-4 py-2 text-[11.5px]">{claim.product}</td>
                         <td className="px-4 py-2 text-[11.5px] font-mono text-gw-blue">{claim.policyRef}</td>
                         <td className="px-4 py-2 text-[11.5px]">
