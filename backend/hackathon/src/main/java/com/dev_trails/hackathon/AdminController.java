@@ -28,6 +28,11 @@ public class AdminController {
         return service.getPolicyDetail(policyNumber);
     }
 
+    @PostMapping("/claims/pay/{riderId}")
+    public Map<String, Object> payManualClaim(@PathVariable Long riderId) {
+        return service.payManualClaim(riderId);
+    }
+
     @GetMapping("/claims")
     public List<Claim> getClaims() {
         return service.getAllClaims();

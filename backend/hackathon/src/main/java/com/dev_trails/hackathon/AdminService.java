@@ -59,6 +59,49 @@ public class AdminService {
         return result;
     }
 
+    public Map<String, Object> payManualClaim(Long riderId) {
+        Rider rider = riderRepo.findById(riderId)
+            .orElseThrow(() -> new RuntimeException("Rider not found"));
+        if (!Boolean.TRUE.equals(rider.isPolicyActive)) {
+            throw new RuntimeException("Policy is not active for payout");
+        }
+
+        double amount = 0;
+        if ("PRO".equals(rider.policyTier)) amount = 1000.0;
+        else if ("STANDARD".equals(rider.policyTier)) amount = 500.0;
+        else amount = 300.0;
+
+        rider.walletBalance += amount;
+        rider.isPolicyActive = false;
+        riderRepo.save(rider);
+
+        PayoutLog payoutLog = new PayoutLog();
+        payoutLog.riderId = rider.id;
+        payoutLog.amount = amount;
+        payoutLog.timestamp = java.time.LocalDateTime.now();
+        payoutLog.triggerType = "MANUAL_ADMIN";
+        payoutLog.zone = rider.zone;
+        payoutLog.claimNumber = "CLM-MANUAL-" + System.currentTimeMillis() + "-" + rider.id;
+        payoutLogRepo.save(payoutLog);
+
+        Claim claim = new Claim();
+        claim.claimNumber = payoutLog.claimNumber;
+        claim.policyRef = "POL-GW-" + java.time.LocalDate.now().getYear() + "-" + String.format("%03d", rider.id);
+        claim.riderId = rider.id;
+        claim.riderName = rider.name;
+        claim.product = rider.policyTier;
+        claim.fraudRisk = "NO";
+        claim.dateOfLoss = java.time.LocalDate.now().toString();
+        claim.status = "APPROVED_MANUAL";
+        claim.triggerType = "MANUAL_ADMIN";
+        claim.amount = amount;
+        claim.zone = rider.zone;
+        claim.approvedAt = java.time.LocalDateTime.now().toString();
+        claimRepo.save(claim);
+
+        return Map.of("success", true, "amount", amount, "claimNumber", claim.claimNumber);
+    }
+
     public List<Claim> getAllClaims() {
         return claimRepo.findAllByOrderByDateOfLossDesc();
     }
@@ -303,3 +346,7 @@ public class AdminService {
         return status;
     }
 }
+
+
+
+

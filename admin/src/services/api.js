@@ -78,3 +78,17 @@ export async function fetchRiskHeatmap() {
 export async function fetchMarketStatus() {
   return await fetchJSON(`${API_BASE}/market-status`)
 }
+
+// ── Manual Claims ──────────────────────────────────────────────
+
+export async function payManualClaim(riderId) {
+  const url = `${API_BASE}/claims/pay/${riderId}`;
+  try {
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error(`Error in payManualClaim:`, err);
+    return null;
+  }
+}

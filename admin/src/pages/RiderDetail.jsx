@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { fetchPolicyDetail } from '../services/api'
+import { fetchPolicyDetail, payManualClaim } from '../services/api'
 import {
   ArrowLeft, Edit, FilePlus, StickyNote, MapPin, Phone, Mail, Calendar, Shield,
   CreditCard, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronRight,
@@ -69,6 +69,21 @@ export default function RiderDetail() {
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [riderId])
+
+  const handlePayNow = async (id) => {
+    try {
+      showToast('Processing admin payout...');
+      const res = await payManualClaim(id);
+      if(res && res.success) {
+         showToast(`Manual payout of ₹${res.amount} processed. Claim: ${res.claimNumber}`);
+         // reload data
+         fetchPolicyDetail(riderId).then(r => setData(r));
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
 
   if (loading) {
     return <div className="p-8 text-center text-gw-text-muted">Loading policy details...</div>
@@ -342,7 +357,7 @@ export default function RiderDetail() {
                     <div className="text-[10px] text-gw-text-muted uppercase tracking-wider font-medium">Total Due</div>
                     <div className="text-[16px] font-bold mt-0.5 text-gw-text">{billing.totalDue || '₹0.00'}</div>
                   </div>
-                  <button onClick={() => showToast(`Payment of ${billing.totalDue} processed via Wallet Auto-Debit`)} className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-medium hover:bg-gw-blue-dark transition-colors">
+                  <button onClick={() => handlePayNow(rider.id)} className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-medium hover:bg-gw-blue-dark transition-colors">
                     Pay Now
                   </button>
                 </div>
