@@ -84,8 +84,8 @@ function AuditIcon({ type }) {
 }
 
 function exportCSV(data, filename) {
-  const headers = ['ID', 'Name', 'Phone', 'City', 'Zone', 'Platform', 'Age', 'Policy Active', 'Tier', 'Wallet Balance', 'Registered']
-  const rows = data.map(r => [r.id, r.name || '', r.phone || '', r.city || '', r.zone || '', r.platform || '', r.age || 0, r.isPolicyActive ?? false, r.policyTier || '-', r.walletBalance ?? 0, r.registeredAt || ''])
+  const headers = ['ID', 'Name', 'Phone', 'City', 'Zone', 'Platform', 'Age', 'Policy Active', 'Tier', 'Wallet Balance', 'Registered', 'Verified']
+  const rows = data.map(r => [r.id, r.name || '', r.phone || '', r.city || '', r.zone || '', r.platform || '', r.age || 0, r.isPolicyActive ?? false, r.policyTier || '-', r.walletBalance ?? 0, r.registeredAt || '', r.verified ? 'Yes' : 'No'])
   const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -136,6 +136,7 @@ export default function UserManagement() {
             policyTier: r.policyTier || null,
             walletBalance: r.walletBalance ?? 0,
             registeredAt: r.registeredAt || new Date().toISOString().slice(0, 10),
+            verified: r.verified ?? false,
           }))
           setRiders(normalized)
         }
@@ -193,6 +194,11 @@ export default function UserManagement() {
     setRiders(prev => prev.map(r => r.id === rider.id ? { ...r, walletBalance: 500 } : r))
   }
 
+  const handleVerifyRider = (rider) => {
+    showToast(`Verification ${rider.verified ? 'revoked' : 'approved'} for ${rider.name}`)
+    setRiders(prev => prev.map(r => r.id === rider.id ? { ...r, verified: !r.verified } : r))
+  }
+
   const hasActiveFilters = filterTier !== 'all' || filterStatus !== 'all'
 
   const TABS = [
@@ -240,6 +246,7 @@ export default function UserManagement() {
                   { label: 'Policy Tier', value: selectedRider.policyTier || 'None' },
                   { label: 'Wallet Balance', value: `₹${(selectedRider.walletBalance ?? 0).toLocaleString()}` },
                   { label: 'Registered', value: selectedRider.registeredAt },
+                  { label: 'Verification', value: selectedRider.verified ? 'Verified ✓' : 'Pending ⏳' },
                 ].map(item => (
                   <div key={item.label} className="bg-gw-bg rounded p-2.5">
                     <div className="text-[10px] text-gw-text-muted font-medium uppercase">{item.label}</div>
@@ -385,6 +392,7 @@ export default function UserManagement() {
                   <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">City / Zone</th>
                   <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">Platform</th>
                   <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">Tier</th>
+                  <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">Verified</th>
                   <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">Status</th>
                   <th className="text-right px-4 py-2 font-semibold text-gw-text-muted">Wallet ₹</th>
                   <th className="text-left px-4 py-2 font-semibold text-gw-text-muted">Registered</th>
@@ -406,6 +414,13 @@ export default function UserManagement() {
                     </td>
                     <td className="px-4 py-2.5 text-gw-text">{r.platform}</td>
                     <td className="px-4 py-2.5"><TierBadge tier={r.policyTier} /></td>
+                    <td className="px-4 py-2.5">
+                      {r.verified ? (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200"><Shield className="w-3 h-3"/> YES</span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"><Clock className="w-3 h-3"/> PENDING</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2.5"><StatusDot active={r.isPolicyActive} /></td>
                     <td className="px-4 py-2.5 text-right font-mono font-medium text-gw-text">₹{(r.walletBalance ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-2.5 text-gw-text-muted">{r.registeredAt}</td>
@@ -419,6 +434,9 @@ export default function UserManagement() {
                         </button>
                         <button onClick={() => handleResetRider(r)} className="p-1 rounded hover:bg-green-100 transition-colors" title="Reset wallet to ₹500">
                           <RotateCcw className="w-3.5 h-3.5 text-green-500" />
+                        </button>
+                        <button onClick={() => handleVerifyRider(r)} className={`p-1 rounded transition-colors ${r.verified ? 'hover:bg-amber-100' : 'hover:bg-blue-100'}`} title={r.verified ? "Revoke Verification" : "Approve Verification"}>
+                          <Shield className={`w-3.5 h-3.5 ${r.verified ? 'text-amber-500' : 'text-blue-500'}`} />
                         </button>
                       </div>
                     </td>

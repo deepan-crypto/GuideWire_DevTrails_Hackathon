@@ -6,7 +6,7 @@ import {
 import {
   User, Shield, Edit3, ChevronRight, Phone, MapPin,
   Briefcase, IndianRupee, FileText, Check, LogOut, X,
-  Gift, Copy, Users,
+  Gift, Copy, Users, Clock,
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { getCachedRiderId, clearOnboardingState } from '@/utils/onboardingState';
@@ -164,10 +164,17 @@ export default function ProfileTab() {
           </View>
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileRole}>Gig Worker · {rider?.platform ?? '—'}</Text>
-          <View style={styles.profileBadge}>
-            <Check size={12} color={PB_GREEN} />
-            <Text style={styles.profileBadgeText}>Verified Member</Text>
-          </View>
+          {rider?.verified ? (
+            <View style={styles.profileBadge}>
+              <Check size={12} color={PB_GREEN} />
+              <Text style={styles.profileBadgeText}>Verified Member</Text>
+            </View>
+          ) : (
+            <View style={[styles.profileBadge, { backgroundColor: '#FFF7ED' }]}>
+              <Clock size={12} color="#EA580C" />
+              <Text style={[styles.profileBadgeText, { color: '#EA580C' }]}>Verification Pending</Text>
+            </View>
+          )}
         </View>
 
         {/* Details */}

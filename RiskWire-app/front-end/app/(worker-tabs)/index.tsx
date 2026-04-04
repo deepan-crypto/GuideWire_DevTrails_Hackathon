@@ -136,7 +136,10 @@ export default function WorkerDashboardTab() {
                 <Text style={styles.avatarText}>{initial}</Text>
               </View>
               <View>
-                <Text style={styles.profileName}>{name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.profileName}>{name}</Text>
+                  {rider?.verified && <CheckCircle2 size={14} color="#4CAF50" />}
+                </View>
                 <Text style={styles.profileType}>Gig Worker</Text>
               </View>
             </View>
