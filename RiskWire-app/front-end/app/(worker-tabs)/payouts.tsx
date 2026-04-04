@@ -21,9 +21,9 @@ export default function PayoutsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadPayouts = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const loadPayouts = useCallback(async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
+    if (!isPolling) setError('');
     try {
       const riderId = getCachedRiderId();
       if (riderId) {
@@ -31,13 +31,17 @@ export default function PayoutsTab() {
         setPayouts(data);
       }
     } catch (e) {
-      setError('Could not load payouts. Check your connection.');
+      if (!isPolling) setError('Could not load payouts. Check your connection.');
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadPayouts(); }, [loadPayouts]));
+  useFocusEffect(useCallback(() => { 
+    loadPayouts(false); 
+    const interval = setInterval(() => loadPayouts(true), 3000);
+    return () => clearInterval(interval);
+  }, [loadPayouts]));
 
   const totalPaid = payouts.filter(p => true).reduce((s, p) => s + p.amount, 0);
 
@@ -49,7 +53,7 @@ export default function PayoutsTab() {
           <Text style={styles.headerTitle}>Payout History</Text>
           <Text style={styles.headerSubtitle}>All your triggered claim payouts</Text>
         </View>
-        <TouchableOpacity style={styles.refreshBtn} onPress={loadPayouts}>
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => loadPayouts(false)}>
           <RefreshCw size={18} color={PB_NAVY} />
         </TouchableOpacity>
       </View>
@@ -62,7 +66,7 @@ export default function PayoutsTab() {
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={loadPayouts}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => loadPayouts(false)}>
             <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -117,7 +121,11 @@ export default function PayoutsTab() {
                     </View>
                   </View>
                   <View style={styles.payoutBottom}>
-                    <Text style={styles.triggerText}>📍 Parametric trigger — Zone disruption detected</Text>
+                    <Text style={styles.triggerText}>
+                      {p.triggerType === 'MANUAL_ADMIN' 
+                        ? '👨‍💼 Manual Claim — Admin Approved' 
+                        : '📍 Parametric trigger — Zone disruption detected'}
+                    </Text>
                     <Text style={[styles.payoutAmount, { color: PB_GREEN }]}>₹{p.amount}</Text>
                   </View>
                 </View>

@@ -26,13 +26,13 @@ export default function WorkerDashboardTab() {
   const [loading, setLoading]   = useState(true);
   const [weather, setWeather]   = useState<{ rainfall: string; temp: string } | null>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       // Ensure riderId is loaded from SecureStore into cache
       await loadOnboardingState();
       const id = getCachedRiderId();
-      if (!id) { setLoading(false); return; }
+      if (!id) { if (!isPolling) setLoading(false); return; }
 
       // Fetch rider + payouts in parallel
       const [riderData, payoutData] = await Promise.all([
@@ -54,11 +54,15 @@ export default function WorkerDashboardTab() {
     } catch {
       // keep whatever we have
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => { 
+    loadData(false);
+    const interval = setInterval(() => loadData(true), 3000);
+    return () => clearInterval(interval);
+  }, [loadData]));
 
   if (loading) {
     return (

@@ -43,8 +43,8 @@ export default function UpdatesTab() {
   const [tracker, setTracker] = useState<ClaimTrackerResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadTracker = useCallback(async () => {
-    setLoading(true);
+  const loadTracker = useCallback(async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       await loadOnboardingState();
       const riderId = getCachedRiderId();
@@ -55,11 +55,15 @@ export default function UpdatesTab() {
     } catch (e) {
       // Silently fail
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadTracker(); }, [loadTracker]));
+  useFocusEffect(useCallback(() => { 
+    loadTracker(false);
+    const interval = setInterval(() => loadTracker(true), 3000);
+    return () => clearInterval(interval);
+  }, [loadTracker]));
 
   const getPipelineStatus = (key: string): boolean => {
     if (!tracker?.pipeline) return key === 'monitoring_weather';
@@ -74,7 +78,7 @@ export default function UpdatesTab() {
           <Text style={styles.headerTitle}>Updates</Text>
           <Text style={styles.headerSubtitle}>Weather · Claims · Policy</Text>
         </View>
-        <TouchableOpacity style={styles.refreshBtn} onPress={loadTracker}>
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => loadTracker(false)}>
           <RefreshCw size={18} color={PB_NAVY} />
         </TouchableOpacity>
       </View>
