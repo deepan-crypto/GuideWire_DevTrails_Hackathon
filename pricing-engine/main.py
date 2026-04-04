@@ -207,6 +207,23 @@ def get_live_quote(zone: str):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ORACLE: Quote Multiplier (Mocked AI)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class QuoteMultiplierRequest(BaseModel):
+    zoneId: Optional[str] = None
+    tier: Optional[str] = None
+
+
+@app.post("/api/v1/oracle/quote-multiplier")
+def quote_multiplier(req: QuoteMultiplierRequest):
+    return {
+        "multiplier": 1.5,
+        "reason": "High probability of server outage / severe weather in next 48 hours."
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # FRAUD DETECTION ENDPOINT (Engine B — Called by ClaimCenter)
 # ══════════════════════════════════════════════════════════════════════════════
 

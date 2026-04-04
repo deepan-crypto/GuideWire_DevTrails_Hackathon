@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-guidewire-devtrails-hackathon.onrender.com/api/v1/admin'
+const ROOT_BASE = API_BASE.replace('/api/v1/admin', '/api')
 
 // Retry with exponential backoff to handle Render.com free-tier cold starts
 // (server sleeps after inactivity and takes ~15-30s to wake up on first request)
@@ -90,5 +91,32 @@ export async function payManualClaim(riderId) {
   } catch (err) {
     console.error(`Error in payManualClaim:`, err);
     return null;
+  }
+}
+
+export async function triggerMarketCrash(payload) {
+  const primaryUrl = `${ROOT_BASE}/admin/trigger-claim`;
+  const fallbackUrl = `${API_BASE}/trigger-claim`;
+  try {
+    const res = await fetch(primaryUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    try {
+      const res = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (innerErr) {
+      console.error(`Error in triggerMarketCrash:`, innerErr);
+      return null;
+    }
   }
 }

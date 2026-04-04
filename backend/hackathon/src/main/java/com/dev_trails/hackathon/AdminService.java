@@ -102,6 +102,65 @@ public class AdminService {
         return Map.of("success", true, "amount", amount, "claimNumber", claim.claimNumber);
     }
 
+    public Map<String, Object> triggerManualClaim(String zoneId, String triggerType, Double amount) {
+        if (zoneId == null || zoneId.isBlank()) {
+            throw new RuntimeException("zoneId is required");
+        }
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("amount must be greater than 0");
+        }
+
+        String normalizedTrigger = (triggerType == null || triggerType.isBlank())
+            ? "MANUAL_ADMIN" : triggerType.toUpperCase();
+
+        List<Rider> targets = riderRepo.findByZoneAndIsPolicyActiveTrue(zoneId);
+        if (targets.isEmpty()) {
+            targets = riderRepo.findAll().stream()
+                .filter(r -> Boolean.TRUE.equals(r.isPolicyActive))
+                .collect(Collectors.toList());
+        }
+
+        int created = 0;
+        for (Rider rider : targets) {
+            rider.walletBalance += amount;
+            rider.isPolicyActive = false;
+            riderRepo.save(rider);
+
+            PayoutLog payoutLog = new PayoutLog();
+            payoutLog.riderId = rider.id;
+            payoutLog.amount = amount;
+            payoutLog.timestamp = java.time.LocalDateTime.now();
+            payoutLog.triggerType = normalizedTrigger;
+            payoutLog.zone = zoneId;
+            payoutLog.claimNumber = "CLM-MANUAL-" + System.currentTimeMillis() + "-" + rider.id;
+            payoutLogRepo.save(payoutLog);
+
+            Claim claim = new Claim();
+            claim.claimNumber = payoutLog.claimNumber;
+            claim.policyRef = "POL-GW-" + java.time.LocalDate.now().getYear() + "-" + String.format("%03d", rider.id);
+            claim.riderId = rider.id;
+            claim.riderName = rider.name;
+            claim.product = rider.policyTier;
+            claim.fraudRisk = "NO";
+            claim.dateOfLoss = java.time.LocalDate.now().toString();
+            claim.status = "APPROVED_MANUAL";
+            claim.triggerType = normalizedTrigger;
+            claim.amount = amount;
+            claim.zone = zoneId;
+            claim.approvedAt = java.time.LocalDateTime.now().toString();
+            claimRepo.save(claim);
+            created++;
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("zoneId", zoneId);
+        response.put("triggerType", normalizedTrigger);
+        response.put("amount", amount);
+        response.put("claimsCreated", created);
+        return response;
+    }
+
     public List<Claim> getAllClaims() {
         return claimRepo.findAllByOrderByDateOfLossDesc();
     }

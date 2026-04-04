@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping({"/api/v1/admin", "/api/admin"})
 public class AdminController {
     private final AdminService service;
 
@@ -85,5 +85,11 @@ public class AdminController {
     @GetMapping("/market-status")
     public Map<String, Object> getMarketStatus() {
         return service.getMarketStatusForAdmin();
+    }
+
+    /** Manual admin trigger: creates MANUAL_ADMIN payout entries */
+    @PostMapping("/trigger-claim")
+    public Map<String, Object> triggerManualClaim(@RequestBody AdminTriggerRequest request) {
+        return service.triggerManualClaim(request.zoneId, request.triggerType, request.amount);
     }
 }

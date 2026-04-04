@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchTriggerZones, fetchApprovalLog } from '../services/api'
+import { fetchTriggerZones, fetchApprovalLog, triggerMarketCrash } from '../services/api'
 import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw, Loader2 } from 'lucide-react'
 
 function LivePulse() {
@@ -82,6 +82,8 @@ export default function ClaimCenter() {
   const [timer, setTimer] = useState(0)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [triggering, setTriggering] = useState(false)
+  const [toast, setToast] = useState(null)
 
   const loadData = () => {
     setLoading(true)
@@ -114,8 +116,34 @@ export default function ClaimCenter() {
 
   const triggeredCount = zones.filter(z => z.triggered).length
 
+  const handleManualTrigger = async () => {
+    setTriggering(true)
+    const payload = { zoneId: 'Z-401', triggerType: 'MANUAL_ADMIN', amount: 150 }
+    const res = await triggerMarketCrash(payload)
+    if (res && res.success !== false) {
+      setToast({ type: 'success', message: 'Market crash protocol triggered. Manual claims queued.' })
+      loadData()
+    } else {
+      setToast({ type: 'error', message: 'Unable to trigger protocol. Check backend status.' })
+    }
+    setTimeout(() => setToast(null), 3500)
+    setTriggering(false)
+  }
+
   return (
     <div>
+      {/* Toast */}
+      {toast && (
+        <div className={`flex items-center gap-2.5 px-4 py-2.5 mb-4 rounded text-[12px] border ${
+          toast.type === 'success'
+            ? 'bg-green-50 text-green-800 border-green-200'
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          <span className="font-semibold">{toast.type === 'success' ? 'Success' : 'Error'}:</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* Server cold-start banner */}
       {loading && (
         <div className="flex items-center gap-2.5 px-4 py-2.5 mb-4 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-800">
@@ -144,6 +172,14 @@ export default function ClaimCenter() {
             <LivePulse />
             {triggeredCount} Active Triggers
           </div>
+          <button
+            onClick={handleManualTrigger}
+            disabled={triggering}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded text-[11.5px] font-semibold hover:bg-red-700 transition-colors shadow-sm disabled:opacity-60"
+          >
+            <AlertTriangle className={`w-3.5 h-3.5 ${triggering ? 'animate-pulse' : ''}`} />
+            {triggering ? 'Triggering...' : 'Trigger Market Crash Protocol'}
+          </button>
           <button
             onClick={() => { setSyncing(true); loadData(); setTimeout(() => setSyncing(false), 1500) }}
             disabled={syncing}
