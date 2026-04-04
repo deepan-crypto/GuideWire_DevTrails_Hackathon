@@ -104,10 +104,9 @@ export default function RiderDetail() {
   }
 
   const claims = data?.claims || []
-  const billingTransactions = data?.transactions || []
-  
+
   // Create a simulated billing summary based on transactions
-  const premiumTxn = billingTransactions.find(t => t.type === 'PREMIUM')
+
   const billing = {
     paymentStatus: rider.delinquencyStatus === 'YES' ? 'Delinquent' : 'Current',
     nextPayment: new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString(),
@@ -121,8 +120,6 @@ export default function RiderDetail() {
 
   const activities = { upcoming: [], past: [] }
 
-  const openClaims = claims.filter(c => c.status === 'Open').length
-  const closedClaims = claims.filter(c => c.status === 'Closed').length
 
   // Premium chart data
   const chartData = [

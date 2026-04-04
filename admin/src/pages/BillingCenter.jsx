@@ -3,6 +3,7 @@ import { fetchBillingSummary, fetchTransactions, fetchMonthlyTrend } from '../se
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle, Loader2 } from 'lucide-react'
 
+// eslint-disable-next-line no-unused-vars
 function StatCard({ label, value, change, positive, icon: Icon, accent }) {
   return (
     <div className="bg-white rounded border border-gw-border p-4">

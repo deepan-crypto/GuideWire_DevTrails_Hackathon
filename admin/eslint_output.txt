@@ -1,0 +1,53 @@
+[0m[0m
+[0m[4mD:\guidewire\GuideWire_DevTrails_Hackathon\admin\src\pages\Analytics.jsx[24m[0m
+[0m  [2m1:20[22m  [31merror[39m  'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mD:\guidewire\GuideWire_DevTrails_Hackathon\admin\src\pages\BillingCenter.jsx[24m[0m
+[0m  [2m6:59[22m  [31merror[39m  'Icon' is defined but never used  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mD:\guidewire\GuideWire_DevTrails_Hackathon\admin\src\pages\FraudAudit.jsx[24m[0m
+[0m  [2m31:5[22m  [31merror[39m  Error: Cannot access variable before it is declared[0m
+[0m[0m
+[0m`loadData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.[0m
+[0m[0m
+[0m  29 |[0m
+[0m  30 |   useEffect(() => {[0m
+[0m> 31 |     loadData()[0m
+[0m     |     ^^^^^^^^ `loadData` accessed before it is declared[0m
+[0m  32 |   }, [])[0m
+[0m  33 |[0m
+[0m  34 |   async function loadData() {[0m
+[0m[0m
+[0m  32 |   }, [])[0m
+[0m  33 |[0m
+[0m> 34 |   async function loadData() {[0m
+[0m     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 35 |     setLoading(true)[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 36 |     const [fraudData, marketData] = await Promise.all([[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 37 |       fetchFraudLogs(),[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 38 |       fetchMarketStatus(),[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 39 |     ])[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 40 |     if (fraudData) setLogs(fraudData)[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 41 |     if (marketData) setMarketStatus(marketData)[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 42 |     setLoading(false)[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 43 |   }[0m
+[0m     | ^^^^ `loadData` is declared here[0m
+[0m  44 |[0m
+[0m  45 |   const filteredLogs = logs.filter(log => {[0m
+[0m  46 |     if (filter === 'blocked' && !log.fraudFlag) return false  [2mreact-hooks/immutability[22m[0m
+[0m[0m
+[0m[4mD:\guidewire\GuideWire_DevTrails_Hackathon\admin\src\pages\RiderDetail.jsx[24m[0m
+[0m  [2m110:9[22m  [31merror[39m  'premiumTxn' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    [2mno-unused-vars[22m[0m
+[0m  [2m124:9[22m  [31merror[39m  'openClaims' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    [2mno-unused-vars[22m[0m
+[0m  [2m125:9[22m  [31merror[39m  'closedClaims' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[31m[1m✖ 6 problems (6 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

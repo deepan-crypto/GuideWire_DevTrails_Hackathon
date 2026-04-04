@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { TrendingUp, TrendingDown, Users, Shield, Zap, Wallet, Clock, AlertTriangle, RefreshCw, ChevronDown, Thermometer, CloudRain } from 'lucide-react'
 

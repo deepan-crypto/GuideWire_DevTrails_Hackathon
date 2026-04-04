@@ -183,7 +183,7 @@ export default function PlansScreen() {
                     router.push({
                       pathname: '/payment',
                       params: { tier: tier.id, premium: String(premium), payout: String(tier.basePayout) },
-                    })
+                    } as any)
                   }
                 >
                   <Text style={styles.selectBtnText}>Select {tier.name} Plan</Text>

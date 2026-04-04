@@ -27,10 +27,6 @@ export default function FraudAudit() {
   const [filter, setFilter] = useState('all') // 'all' | 'blocked' | 'passed'
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
   async function loadData() {
     setLoading(true)
     const [fraudData, marketData] = await Promise.all([
@@ -41,6 +37,12 @@ export default function FraudAudit() {
     if (marketData) setMarketStatus(marketData)
     setLoading(false)
   }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+
 
   const filteredLogs = logs.filter(log => {
     if (filter === 'blocked' && !log.fraudFlag) return false
