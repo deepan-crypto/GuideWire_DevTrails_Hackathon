@@ -30,6 +30,7 @@ export default function PaymentScreen() {
   const [selectedApp, setSelectedApp] = useState('');
   const [state, setState] = useState<PaymentState>('SELECT');
   const [error, setError] = useState('');
+  const [transactionId, setTransactionId] = useState('');
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -53,6 +54,9 @@ export default function PaymentScreen() {
     if (!selectedApp) return;
     setState('PROCESSING');
     startSpinner();
+
+    const txn = `RW-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 9000 + 1000)}`;
+    setTransactionId(txn);
 
     // Simulate payment processing (2 seconds)
     await new Promise(r => setTimeout(r, 2000));
@@ -146,6 +150,26 @@ export default function PaymentScreen() {
               ))}
             </View>
 
+            {/* Stripe-style QR */}
+            <View style={styles.qrCard}>
+              <View style={styles.qrHeader}>
+                <Shield size={16} color={PB_NAVY} />
+                <Text style={styles.qrTitle}>Stripe QR (Mock)</Text>
+              </View>
+              <View style={styles.qrBox}>
+                <View style={styles.qrPixel} />
+                <View style={[styles.qrPixel, { top: 8, left: 44 }]} />
+                <View style={[styles.qrPixel, { top: 28, left: 16 }]} />
+                <View style={[styles.qrPixel, { top: 36, left: 52 }]} />
+                <View style={[styles.qrPixel, { top: 52, left: 24 }]} />
+                <View style={[styles.qrPixel, { top: 60, left: 60 }]} />
+                <View style={[styles.qrPixel, { top: 12, left: 12 }]} />
+                <View style={[styles.qrPixel, { top: 12, left: 64 }]} />
+                <View style={[styles.qrPixel, { top: 64, left: 12 }]} />
+              </View>
+              <Text style={styles.qrMeta}>Scan to pay ₹{amount} · Expires in 02:00</Text>
+            </View>
+
             {/* Pay Button */}
             <TouchableOpacity
               style={[styles.payBtn, !selectedApp && styles.payBtnDisabled]}
@@ -153,7 +177,7 @@ export default function PaymentScreen() {
               disabled={!selectedApp}
             >
               <CreditCard size={20} color="#FFF" />
-              <Text style={styles.payBtnText}>Pay ₹{amount}</Text>
+              <Text style={styles.payBtnText}>Pay Now · ₹{amount}</Text>
             </TouchableOpacity>
 
             <View style={styles.securityRow}>
@@ -178,8 +202,10 @@ export default function PaymentScreen() {
             <View style={styles.processingSteps}>
               <Text style={styles.processingStep}>✓ Verifying account</Text>
               <Text style={styles.processingStep}>✓ Connecting to UPI</Text>
+              <Text style={styles.processingStep}>✓ Generating QR session</Text>
               <Text style={[styles.processingStep, { color: '#FF9800' }]}>⏳ Awaiting confirmation...</Text>
             </View>
+            <Text style={styles.txnText}>Transaction ID: {transactionId}</Text>
           </View>
         )}
 
@@ -197,6 +223,10 @@ export default function PaymentScreen() {
               <View style={styles.receiptRow}>
                 <Text style={styles.receiptLabel}>Amount Paid</Text>
                 <Text style={styles.receiptValue}>₹{amount}</Text>
+              </View>
+              <View style={styles.receiptRow}>
+                <Text style={styles.receiptLabel}>Transaction ID</Text>
+                <Text style={styles.receiptValue}>{transactionId}</Text>
               </View>
               <View style={styles.receiptRow}>
                 <Text style={styles.receiptLabel}>Plan</Text>
@@ -249,6 +279,38 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#1A1A24' },
   body: { flex: 1, padding: 20 },
 
+  qrCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E9F2',
+    marginBottom: 18,
+  },
+  qrHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  qrTitle: { fontSize: 13, fontWeight: '800', color: '#1A1A24' },
+  qrBox: {
+    width: 88,
+    height: 88,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1A1A24',
+    alignSelf: 'center',
+    marginBottom: 10,
+    backgroundColor: '#F8FAFF',
+    position: 'relative',
+  },
+  qrPixel: {
+    width: 10,
+    height: 10,
+    backgroundColor: '#1A1A24',
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    borderRadius: 2,
+  },
+  qrMeta: { textAlign: 'center', fontSize: 11, color: '#6B7280' },
+
   // Summary Card
   summaryCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20,
@@ -295,6 +357,7 @@ const styles = StyleSheet.create({
   statusContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 24 },
   statusTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A24' },
   statusDesc: { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 22 },
+  txnText: { fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 10 },
 
   // Spinner
   spinner: {
