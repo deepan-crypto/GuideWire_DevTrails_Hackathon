@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CreditCard, Check, Shield, Smartphone, IndianRupee } from 'lucide-react-native';
-import { getCachedRiderId } from '@/utils/onboardingState';
+import { getCachedRiderId, setOnboardingComplete } from '@/utils/onboardingState';
 import { buyPolicy } from '@/utils/api';
 
 const PB_NAVY = '#0F4C81';
@@ -21,10 +21,11 @@ const UPI_APPS = [
 type PaymentState = 'SELECT' | 'PROCESSING' | 'SUCCESS' | 'FAILURE';
 
 export default function PaymentScreen() {
-  const { tier, premium, payout } = useLocalSearchParams<{
+  const { tier, premium, payout, riderId } = useLocalSearchParams<{
     tier: string;
     premium: string;
     payout: string;
+    riderId?: string;
   }>();
 
   const [selectedApp, setSelectedApp] = useState('');
@@ -62,11 +63,13 @@ export default function PaymentScreen() {
     await new Promise(r => setTimeout(r, 2000));
 
     try {
-      const riderId = getCachedRiderId();
-      if (!riderId) throw new Error('No rider ID');
+      const resolvedRiderId = riderId ? parseInt(riderId, 10) : getCachedRiderId();
+      if (!resolvedRiderId) throw new Error('No rider ID');
 
       // Call buyPolicy on the backend
-      await buyPolicy(riderId, tier || 'standard');
+      await buyPolicy(resolvedRiderId, tier || 'standard');
+
+      await setOnboardingComplete(resolvedRiderId);
 
       setState('SUCCESS');
       playSuccess();
