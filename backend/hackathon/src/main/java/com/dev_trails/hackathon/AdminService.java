@@ -197,9 +197,26 @@ public class AdminService {
         zoneNames.put("MZ-HYD-08", "Gachibowli, Hyderabad");
         zoneNames.put("MZ-CHN-11", "Adyar, Chennai");
 
-        for (Map.Entry<String, double[]> entry : fallbackWeather.entrySet()) {
-            String zoneId = entry.getKey();
-            double[] fb = entry.getValue();
+        Map<String, String> policyZoneNames = new LinkedHashMap<>();
+        for (Policy policy : activePolicies) {
+            if (policy.zone == null) continue;
+            String zoneId = policy.zone.split(" ")[0];
+            String name = policy.zone.replace(zoneId, "").trim();
+            if (!name.isBlank()) policyZoneNames.put(zoneId, name.replace("(", "").replace(")", "").trim());
+        }
+
+        List<String> zoneIds = new ArrayList<>(zoneMap.keySet());
+        if (zoneIds.isEmpty()) {
+            zoneIds = new ArrayList<>(fallbackWeather.keySet());
+        }
+
+        List<Claim> allClaims = claimRepo.findAll();
+        Map<String, Long> pendingClaimsByZone = allClaims.stream()
+            .filter(c -> "Open".equals(c.status))
+            .collect(Collectors.groupingBy(c -> c.zone, Collectors.counting()));
+
+        for (String zoneId : zoneIds) {
+            double[] fb = fallbackWeather.getOrDefault(zoneId, new double[]{32.0, 10.0, 42.0, 80.0});
             
             double realTemp = fb[0];
             double realRain = fb[1];
@@ -233,12 +250,12 @@ public class AdminService {
             }
 
             List<Policy> ridersInZone = zoneMap.getOrDefault(zoneId, Collections.emptyList());
-            long pendingClaims = claimRepo.findByPolicyRef(zoneId).stream()
-                .filter(c -> "Open".equals(c.status)).count();
+            long pendingClaims = pendingClaimsByZone.getOrDefault(zoneId, 0L);
 
             Map<String, Object> zone = new LinkedHashMap<>();
             zone.put("id", zoneId);
-            zone.put("name", zoneNames.getOrDefault(zoneId, zoneId));
+            String zoneName = policyZoneNames.getOrDefault(zoneId, zoneNames.getOrDefault(zoneId, zoneId));
+            zone.put("name", zoneName);
             zone.put("temp", realTemp);
             zone.put("rain", realRain);
             zone.put("heatThreshold", heatThreshold);
@@ -405,7 +422,3 @@ public class AdminService {
         return status;
     }
 }
-
-
-
-
