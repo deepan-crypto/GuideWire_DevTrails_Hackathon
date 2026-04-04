@@ -73,16 +73,16 @@ public class AdminService {
             .collect(Collectors.groupingBy(p -> p.zone.split(" ")[0]));
 
         List<Map<String, Object>> zones = new ArrayList<>();
-        Map<String, double[]> zoneWeather = new LinkedHashMap<>();
-        zoneWeather.put("MZ-DEL-04", new double[]{47.2, 0, 45, 80});
-        zoneWeather.put("MZ-DEL-09", new double[]{46.1, 0, 45, 80});
-        zoneWeather.put("MZ-MUM-12", new double[]{34.5, 112, 42, 80});
-        zoneWeather.put("MZ-BLR-07", new double[]{31.2, 22, 40, 80});
-        zoneWeather.put("MZ-HYD-03", new double[]{38.9, 5, 43, 80});
-        zoneWeather.put("MZ-CHN-05", new double[]{36.7, 95, 42, 80});
-        zoneWeather.put("MZ-PUN-02", new double[]{29.4, 8, 41, 80});
-        zoneWeather.put("MZ-HYD-08", new double[]{39.5, 3, 43, 80});
-        zoneWeather.put("MZ-CHN-11", new double[]{35.9, 88, 42, 80});
+        Map<String, double[]> fallbackWeather = new LinkedHashMap<>();
+        fallbackWeather.put("MZ-DEL-04", new double[]{47.2, 0, 45, 80});
+        fallbackWeather.put("MZ-DEL-09", new double[]{46.1, 0, 45, 80});
+        fallbackWeather.put("MZ-MUM-12", new double[]{34.5, 112, 42, 80});
+        fallbackWeather.put("MZ-BLR-07", new double[]{31.2, 22, 40, 80});
+        fallbackWeather.put("MZ-HYD-03", new double[]{38.9, 5, 43, 80});
+        fallbackWeather.put("MZ-CHN-05", new double[]{36.7, 95, 42, 80});
+        fallbackWeather.put("MZ-PUN-02", new double[]{29.4, 8, 41, 80});
+        fallbackWeather.put("MZ-HYD-08", new double[]{39.5, 3, 43, 80});
+        fallbackWeather.put("MZ-CHN-11", new double[]{35.9, 88, 42, 80});
 
         Map<String, String> zoneNames = new LinkedHashMap<>();
         zoneNames.put("MZ-DEL-04", "Connaught Place, Delhi");
@@ -95,13 +95,41 @@ public class AdminService {
         zoneNames.put("MZ-HYD-08", "Gachibowli, Hyderabad");
         zoneNames.put("MZ-CHN-11", "Adyar, Chennai");
 
-        for (Map.Entry<String, double[]> entry : zoneWeather.entrySet()) {
+        for (Map.Entry<String, double[]> entry : fallbackWeather.entrySet()) {
             String zoneId = entry.getKey();
-            double[] w = entry.getValue();
-            boolean heatTriggered = w[0] >= w[2];
-            boolean rainTriggered = w[1] >= w[3];
-            boolean triggered = heatTriggered || rainTriggered;
-            String triggerType = heatTriggered ? "HEAT" : (rainTriggered ? "RAIN" : null);
+            double[] fb = entry.getValue();
+            
+            double realTemp = fb[0];
+            double realRain = fb[1];
+            double heatThreshold = fb[2];
+            double rainThreshold = fb[3];
+            boolean triggered = false;
+            String triggerType = null;
+            
+            try {
+                OracleLiveResponse live = restTemplate.getForObject(
+                    oracleBaseUrl + "/api/v1/pricing/quote?zone=" + zoneId,
+                    OracleLiveResponse.class);
+                if (live != null) {
+                    if (live.live_temp != null) realTemp = Math.round(live.live_temp * 10.0) / 10.0;
+                    if (live.live_rain != null) realRain = Math.round(live.live_rain * 10.0) / 10.0;
+                    if (Boolean.TRUE.equals(live.payout_triggered)) {
+                        triggered = true;
+                        triggerType = live.trigger_type != null ? live.trigger_type.toUpperCase() : "WEATHER";
+                    }
+                }
+            } catch (Exception e) {
+                // Fallback to static values
+            }
+            
+            if (!triggered) {
+                boolean heatTriggered = realTemp >= heatThreshold;
+                boolean rainTriggered = realRain >= rainThreshold;
+                triggered = heatTriggered || rainTriggered;
+                if (heatTriggered) triggerType = "HEAT";
+                else if (rainTriggered) triggerType = "RAIN";
+            }
+
             List<Policy> ridersInZone = zoneMap.getOrDefault(zoneId, Collections.emptyList());
             long pendingClaims = claimRepo.findByPolicyRef(zoneId).stream()
                 .filter(c -> "Open".equals(c.status)).count();
@@ -109,10 +137,10 @@ public class AdminService {
             Map<String, Object> zone = new LinkedHashMap<>();
             zone.put("id", zoneId);
             zone.put("name", zoneNames.getOrDefault(zoneId, zoneId));
-            zone.put("temp", w[0]);
-            zone.put("rain", w[1]);
-            zone.put("heatThreshold", w[2]);
-            zone.put("rainThreshold", w[3]);
+            zone.put("temp", realTemp);
+            zone.put("rain", realRain);
+            zone.put("heatThreshold", heatThreshold);
+            zone.put("rainThreshold", rainThreshold);
             zone.put("triggered", triggered);
             zone.put("triggerType", triggerType);
             zone.put("riders", ridersInZone.size());
