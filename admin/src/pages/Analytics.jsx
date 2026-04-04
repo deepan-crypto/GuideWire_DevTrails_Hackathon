@@ -75,6 +75,16 @@ const PREDICTIVE_FACTORS = [
 /* ── Component ── */
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState('overview')
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(new Date())
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    setTimeout(() => {
+      setRefreshing(false)
+      setLastUpdated(new Date())
+    }, 1200)
+  }
 
   const TABS = [
     { id: 'overview', label: 'Overview' },
@@ -93,9 +103,14 @@ export default function Analytics() {
         </div>
         <div className="flex items-center gap-2 text-[11px]">
           <span className="text-gw-text-muted">Last updated:</span>
-          <span className="font-mono font-semibold text-gw-text">{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-semibold hover:bg-blue-700 ml-2">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          <span className="font-mono font-semibold text-gw-text">{lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-semibold hover:bg-blue-700 ml-2 disabled:opacity-60 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>

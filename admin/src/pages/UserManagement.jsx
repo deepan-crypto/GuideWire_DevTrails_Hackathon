@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw, Loader2 } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw, Loader2, X, UserCheck, UserX } from 'lucide-react'
 import { fetchRiders } from '../services/api'
 
 /* ── Mock data (fallback when backend is unavailable) ──────────────────── */
@@ -31,6 +31,10 @@ const AUDIT_LOG = [
   { time: '17:12:45', user: 'Saravana K.', action: 'Approved manual claim CLM-2026-008', type: 'action' },
   { time: '16:00:00', user: 'System', action: 'Daily backup completed — 10 riders, 10 policies, 10 claims', type: 'system' },
   { time: '14:22:10', user: 'Deepan', action: 'Updated zone mapping for MZ-CHN-03', type: 'action' },
+  { time: '13:15:00', user: 'System', action: 'New rider registered: Ananya Das (Kolkata)', type: 'system' },
+  { time: '12:45:30', user: 'Saravana K.', action: 'Modified risk threshold for MZ-MUM-02', type: 'action' },
+  { time: '11:20:00', user: 'System', action: 'Rain trigger detected in MZ-MUM-02 — 3 payouts processed', type: 'trigger' },
+  { time: '10:30:00', user: 'System', action: 'Scheduled premium recalculation completed', type: 'system' },
 ]
 
 const ZONES = [
@@ -81,7 +85,7 @@ function AuditIcon({ type }) {
 
 function exportCSV(data, filename) {
   const headers = ['ID', 'Name', 'Phone', 'City', 'Zone', 'Platform', 'Age', 'Policy Active', 'Tier', 'Wallet Balance', 'Registered']
-  const rows = data.map(r => [r.id, r.name, r.phone, r.city, r.zone, r.platform, r.age, r.isPolicyActive, r.policyTier || '-', r.walletBalance, r.registeredAt])
+  const rows = data.map(r => [r.id, r.name || '', r.phone || '', r.city || '', r.zone || '', r.platform || '', r.age || 0, r.isPolicyActive ?? false, r.policyTier || '-', r.walletBalance ?? 0, r.registeredAt || ''])
   const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -89,6 +93,8 @@ function exportCSV(data, filename) {
   a.href = url; a.download = filename; a.click()
   URL.revokeObjectURL(url)
 }
+
+const PAGE_SIZE = 10
 
 /* ── Main component ────────────────────────────────────────────────────── */
 export default function UserManagement() {
@@ -98,11 +104,43 @@ export default function UserManagement() {
   const [toast, setToast] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Rider list state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [filterTier, setFilterTier] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Rider detail modal
+  const [selectedRider, setSelectedRider] = useState(null)
+  const [suspendedRiders, setSuspendedRiders] = useState(new Set())
+
+  // Audit log filter
+  const [auditFilter, setAuditFilter] = useState('all')
+  const [showAllAudit, setShowAllAudit] = useState(false)
+
   const loadRiders = () => {
     setLoading(true)
     fetchRiders()
-      .then(data => { if (data && data.length > 0) setRiders(data) })
-      .catch(() => {})
+      .then(data => {
+        if (data && data.length > 0) {
+          // Normalize API data to match expected shape with safe defaults
+          const normalized = data.map(r => ({
+            id: r.id,
+            name: r.name || 'Unknown',
+            phone: r.phone || '—',
+            city: r.city || '—',
+            zone: r.zone || '—',
+            platform: r.platform || '—',
+            age: r.age || 0,
+            isPolicyActive: r.isPolicyActive ?? false,
+            policyTier: r.policyTier || null,
+            walletBalance: r.walletBalance ?? 0,
+            registeredAt: r.registeredAt || new Date().toISOString().slice(0, 10),
+          }))
+          setRiders(normalized)
+        }
+      })
+      .catch((err) => { console.warn('Failed to load riders:', err) })
       .finally(() => setLoading(false))
   }
 
@@ -110,14 +148,52 @@ export default function UserManagement() {
     loadRiders()
   }, [])
 
-  const filteredRiders = riders.filter(r =>
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.city.toLowerCase().includes(search.toLowerCase()) ||
-    r.zone.toLowerCase().includes(search.toLowerCase()) ||
-    r.phone.includes(search)
-  )
+  const filteredRiders = riders.filter(r => {
+    const matchesSearch =
+      (r.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.city || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.zone || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.phone || '').includes(search)
+    if (!matchesSearch) return false
+    if (filterTier !== 'all' && r.policyTier !== filterTier) return false
+    if (filterStatus === 'active' && !r.isPolicyActive) return false
+    if (filterStatus === 'inactive' && r.isPolicyActive) return false
+    return true
+  })
+
+  // Pagination for riders
+  const totalPages = Math.max(1, Math.ceil(filteredRiders.length / PAGE_SIZE))
+  const paginatedRiders = filteredRiders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  useEffect(() => { setCurrentPage(1) }, [search, filterTier, filterStatus])
+
+  // Audit filtering
+  const filteredAudit = AUDIT_LOG.filter(log => auditFilter === 'all' || log.type === auditFilter)
+  const displayedAudit = showAllAudit ? filteredAudit : filteredAudit.slice(0, 8)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  const handleViewRider = (rider) => {
+    setSelectedRider(rider)
+  }
+
+  const handleSuspendRider = (rider) => {
+    const newSet = new Set(suspendedRiders)
+    if (newSet.has(rider.id)) {
+      newSet.delete(rider.id)
+      showToast(`Rider ${rider.name} has been reactivated`)
+    } else {
+      newSet.add(rider.id)
+      showToast(`Rider ${rider.name} has been suspended`)
+    }
+    setSuspendedRiders(newSet)
+  }
+
+  const handleResetRider = (rider) => {
+    showToast(`Wallet reset to ₹500 for ${rider.name}`)
+    setRiders(prev => prev.map(r => r.id === rider.id ? { ...r, walletBalance: 500 } : r))
+  }
+
+  const hasActiveFilters = filterTier !== 'all' || filterStatus !== 'all'
 
   const TABS = [
     { id: 'riders', label: 'Rider Registry', count: riders.length },
@@ -133,6 +209,59 @@ export default function UserManagement() {
         <div className="fixed top-4 right-4 z-50 bg-gw-header text-white px-4 py-2.5 rounded shadow-lg text-[12px] font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-green-400" />
           {toast}
+        </div>
+      )}
+
+      {/* Rider Detail Modal */}
+      {selectedRider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectedRider(null)}>
+          <div className="bg-white rounded-lg shadow-2xl w-[480px] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gw-border bg-gw-blue text-white rounded-t-lg">
+              <span className="font-semibold text-[14px]">Rider Details</span>
+              <button onClick={() => setSelectedRider(null)} className="text-white/70 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gw-blue text-white flex items-center justify-center text-[18px] font-bold">
+                  {selectedRider.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                </div>
+                <div>
+                  <div className="text-[16px] font-bold text-gw-text">{selectedRider.name}</div>
+                  <div className="text-[12px] text-gw-text-muted">R-{String(selectedRider.id).padStart(4, '0')} · {selectedRider.platform}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Phone', value: selectedRider.phone },
+                  { label: 'Age', value: `${selectedRider.age} years` },
+                  { label: 'City', value: selectedRider.city },
+                  { label: 'Zone', value: selectedRider.zone },
+                  { label: 'Platform', value: selectedRider.platform },
+                  { label: 'Policy Tier', value: selectedRider.policyTier || 'None' },
+                  { label: 'Wallet Balance', value: `₹${(selectedRider.walletBalance ?? 0).toLocaleString()}` },
+                  { label: 'Registered', value: selectedRider.registeredAt },
+                ].map(item => (
+                  <div key={item.label} className="bg-gw-bg rounded p-2.5">
+                    <div className="text-[10px] text-gw-text-muted font-medium uppercase">{item.label}</div>
+                    <div className="text-[13px] font-semibold text-gw-text mt-0.5">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold ${
+                  selectedRider.isPolicyActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
+                }`}>
+                  {selectedRider.isPolicyActive ? <UserCheck className="w-3.5 h-3.5" /> : <UserX className="w-3.5 h-3.5" />}
+                  {selectedRider.isPolicyActive ? 'Policy Active' : 'No Active Policy'}
+                </span>
+                {suspendedRiders.has(selectedRider.id) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold border border-red-200">
+                    <Ban className="w-3 h-3" /> SUSPENDED
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -203,11 +332,47 @@ export default function UserManagement() {
               <span className="text-[11px] text-gw-text-muted">{filteredRiders.length} of {riders.length} riders</span>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1 px-2.5 py-1.5 border border-gw-border rounded text-[11px] text-gw-text-muted hover:bg-gray-50">
-                <Filter className="w-3 h-3" /> Filter <ChevronDown className="w-3 h-3" />
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 border rounded text-[11px] transition-colors ${
+                  hasActiveFilters
+                    ? 'bg-gw-blue/10 border-gw-blue text-gw-blue font-semibold'
+                    : 'border-gw-border text-gw-text-muted hover:bg-gray-50'
+                }`}
+              >
+                <Filter className="w-3 h-3" />
+                Filter{hasActiveFilters ? ' ●' : ''}
+                <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
+              {hasActiveFilters && (
+                <button onClick={() => { setFilterTier('all'); setFilterStatus('all') }} className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-500 hover:text-red-700 font-medium">
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Filter panel */}
+          {showFilters && (
+            <div className="px-4 py-3 border-b border-gw-border bg-gw-bg/60 flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-[10.5px] text-gw-text-muted font-medium">Tier:</span>
+                {['all', 'PRO', 'STANDARD', 'BASIC'].map(t => (
+                  <button key={t} onClick={() => setFilterTier(t)}
+                    className={`px-2 py-1 rounded text-[10.5px] font-medium transition-colors ${filterTier === t ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gray-50'}`}
+                  >{t === 'all' ? 'All' : t}</button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10.5px] text-gw-text-muted font-medium">Status:</span>
+                {['all', 'active', 'inactive'].map(s => (
+                  <button key={s} onClick={() => setFilterStatus(s)}
+                    className={`px-2 py-1 rounded text-[10.5px] font-medium transition-colors ${filterStatus === s ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gray-50'}`}
+                  >{s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto">
@@ -227,10 +392,13 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRiders.map((r, i) => (
-                  <tr key={r.id} className={`border-b border-gw-border hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                {paginatedRiders.map((r, i) => (
+                  <tr key={r.id} className={`border-b border-gw-border hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''} ${suspendedRiders.has(r.id) ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-2.5 font-mono text-gw-blue font-semibold">R-{String(r.id).padStart(4, '0')}</td>
-                    <td className="px-4 py-2.5 font-medium text-gw-text">{r.name}</td>
+                    <td className="px-4 py-2.5 font-medium text-gw-text">
+                      {r.name}
+                      {suspendedRiders.has(r.id) && <span className="ml-1.5 px-1 py-0.5 bg-red-100 text-red-600 rounded text-[8px] font-bold">SUSPENDED</span>}
+                    </td>
                     <td className="px-4 py-2.5 text-gw-text-muted font-mono">{r.phone}</td>
                     <td className="px-4 py-2.5">
                       <div className="text-gw-text">{r.city}</div>
@@ -239,13 +407,19 @@ export default function UserManagement() {
                     <td className="px-4 py-2.5 text-gw-text">{r.platform}</td>
                     <td className="px-4 py-2.5"><TierBadge tier={r.policyTier} /></td>
                     <td className="px-4 py-2.5"><StatusDot active={r.isPolicyActive} /></td>
-                    <td className="px-4 py-2.5 text-right font-mono font-medium text-gw-text">₹{r.walletBalance.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-mono font-medium text-gw-text">₹{(r.walletBalance ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-2.5 text-gw-text-muted">{r.registeredAt}</td>
                     <td className="px-4 py-2.5 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1 rounded hover:bg-blue-100" title="View"><Eye className="w-3.5 h-3.5 text-gw-blue" /></button>
-                        <button className="p-1 rounded hover:bg-red-100" title="Suspend"><Ban className="w-3.5 h-3.5 text-red-400" /></button>
-                        <button className="p-1 rounded hover:bg-green-100" title="Reset"><RotateCcw className="w-3.5 h-3.5 text-green-500" /></button>
+                        <button onClick={() => handleViewRider(r)} className="p-1 rounded hover:bg-blue-100 transition-colors" title="View details">
+                          <Eye className="w-3.5 h-3.5 text-gw-blue" />
+                        </button>
+                        <button onClick={() => handleSuspendRider(r)} className="p-1 rounded hover:bg-red-100 transition-colors" title={suspendedRiders.has(r.id) ? 'Reactivate' : 'Suspend'}>
+                          <Ban className={`w-3.5 h-3.5 ${suspendedRiders.has(r.id) ? 'text-red-600' : 'text-red-400'}`} />
+                        </button>
+                        <button onClick={() => handleResetRider(r)} className="p-1 rounded hover:bg-green-100 transition-colors" title="Reset wallet to ₹500">
+                          <RotateCcw className="w-3.5 h-3.5 text-green-500" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -255,11 +429,25 @@ export default function UserManagement() {
           </div>
           {/* Pagination footer */}
           <div className="flex items-center justify-between px-4 py-2.5 bg-gw-bg border-t border-gw-border text-[11px] text-gw-text-muted">
-            <span>Showing 1–{filteredRiders.length} of {riders.length} riders</span>
+            <span>Page {currentPage} of {totalPages} · Showing {paginatedRiders.length} of {filteredRiders.length} riders</span>
             <div className="flex items-center gap-1">
-              <button className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50">‹ Prev</button>
-              <button className="px-2 py-1 border border-gw-border rounded bg-gw-blue text-white font-semibold">1</button>
-              <button className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50">Next ›</button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >‹ Prev</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+                Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2)
+              ).map(p => (
+                <button key={p} onClick={() => setCurrentPage(p)}
+                  className={`px-2 py-1 border border-gw-border rounded transition-colors ${p === currentPage ? 'bg-gw-blue text-white font-semibold' : 'bg-white hover:bg-gray-50'}`}
+                >{p}</button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >Next ›</button>
             </div>
           </div>
         </div>
@@ -338,12 +526,31 @@ export default function UserManagement() {
         <div className="bg-white border border-t-0 border-gw-border rounded-b">
           <div className="px-4 py-3 border-b border-gw-border flex items-center justify-between">
             <span className="text-[11.5px] text-gw-text-muted">Today — {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-            <button className="flex items-center gap-1 px-2.5 py-1.5 border border-gw-border rounded text-[11px] text-gw-text-muted hover:bg-gray-50">
-              <Filter className="w-3 h-3" /> Filter by type
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-gray-100 rounded p-0.5">
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'system', label: 'System' },
+                  { key: 'trigger', label: 'Triggers' },
+                  { key: 'action', label: 'Actions' },
+                  { key: 'export', label: 'Exports' },
+                  { key: 'view', label: 'Views' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setAuditFilter(tab.key)}
+                    className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                      auditFilter === tab.key ? 'bg-white text-gw-text shadow-sm' : 'text-gw-text-muted hover:text-gw-text'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="divide-y divide-gw-border">
-            {AUDIT_LOG.map((log, i) => (
+            {displayedAudit.map((log, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50/50">
                 <div className="mt-0.5"><AuditIcon type={log.type} /></div>
                 <div className="flex-1 min-w-0">
@@ -353,9 +560,18 @@ export default function UserManagement() {
                 <span className="text-[10px] text-gw-text-muted font-mono shrink-0">{log.time}</span>
               </div>
             ))}
+            {displayedAudit.length === 0 && (
+              <div className="px-4 py-12 text-center text-gw-text-muted text-[13px]">No audit entries match this filter</div>
+            )}
           </div>
           <div className="px-4 py-2.5 bg-gw-bg border-t border-gw-border text-[11px] text-gw-text-muted text-center">
-            Showing last 8 entries · <button className="text-gw-blue font-semibold hover:underline">View full history</button>
+            Showing {displayedAudit.length} of {filteredAudit.length} entries ·{' '}
+            <button
+              onClick={() => setShowAllAudit(!showAllAudit)}
+              className="text-gw-blue font-semibold hover:underline"
+            >
+              {showAllAudit ? 'Show less' : `View full history (${filteredAudit.length})`}
+            </button>
           </div>
         </div>
       )}

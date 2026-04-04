@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard, ShieldCheck, ShieldAlert, Wifi } from 'lucide-react'
 import { useAuth, ROLES } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationsContext'
@@ -130,8 +130,29 @@ function Header() {
   const { user, roleInfo } = useAuth()
   const { unreadCount, setPanelOpen, panelOpen } = useNotifications()
   const [showRoleSwitcher, setShowRoleSwitcher] = useState(false)
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const navigate = useNavigate()
 
   const avatarBg = ROLE_COLOR_CLASS[user?.role] || 'bg-gw-blue'
+
+  const SEARCH_TARGETS = [
+    { label: 'PolicyCenter — Policy Search', route: '/policy-center', keywords: ['policy', 'policies', 'insurance', 'premium', 'plan'] },
+    { label: 'ClaimCenter — Claims Desktop', route: '/claim-center', keywords: ['claim', 'claims', 'trigger', 'weather', 'payout'] },
+    { label: 'BillingCenter — Financial Overview', route: '/billing-center', keywords: ['billing', 'payment', 'transaction', 'ledger', 'revenue'] },
+    { label: 'User Management — Rider Registry', route: '/user-management', keywords: ['user', 'rider', 'account', 'admin', 'role'] },
+    { label: 'Analytics — Dashboard', route: '/analytics', keywords: ['analytics', 'chart', 'metric', 'report', 'stat'] },
+    { label: 'Fraud Audit — Detection Logs', route: '/fraud-audit', keywords: ['fraud', 'audit', 'security', 'blocked', 'suspicious'] },
+  ]
+
+  const searchResults = globalSearch.length >= 2
+    ? SEARCH_TARGETS.filter(t => {
+        const q = globalSearch.toLowerCase()
+        return t.label.toLowerCase().includes(q) || t.keywords.some(k => k.includes(q))
+      })
+    : []
+
+  const handleSearchSelect = (route) => { navigate(route); setGlobalSearch(''); setShowSearchResults(false) }
 
   return (
     <header className="h-[52px] bg-gw-header flex items-center justify-between px-5 border-b border-[#001F3F] shrink-0 relative">
@@ -161,8 +182,25 @@ function Header() {
           <input
             type="text"
             placeholder="Search policies, claims, accounts..."
+            value={globalSearch}
+            onChange={e => { setGlobalSearch(e.target.value); setShowSearchResults(true) }}
+            onFocus={() => globalSearch.length >= 2 && setShowSearchResults(true)}
+            onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+            onKeyDown={e => { if (e.key === 'Enter' && searchResults.length > 0) handleSearchSelect(searchResults[0].route); if (e.key === 'Escape') { setShowSearchResults(false); setGlobalSearch('') } }}
             className="bg-white/10 border border-blue-700/50 rounded text-[11.5px] text-white placeholder:text-blue-400/60 pl-8 pr-3 py-1.5 w-[260px] focus:outline-none focus:border-blue-400/60 focus:bg-white/15 transition-colors"
           />
+          {showSearchResults && globalSearch.length >= 2 && (
+            <div className="absolute top-full left-0 mt-1 w-[320px] bg-white rounded-lg shadow-2xl border border-gray-200 z-50 overflow-hidden">
+              {searchResults.length > 0 ? searchResults.map(r => (
+                <button key={r.route} onMouseDown={() => handleSearchSelect(r.route)} className="w-full text-left px-4 py-2.5 text-[12px] text-gray-800 hover:bg-blue-50 flex items-center gap-2 transition-colors border-b border-gray-100 last:border-b-0">
+                  <Search className="w-3 h-3 text-gray-400 shrink-0" />
+                  <span className="font-medium">{r.label}</span>
+                </button>
+              )) : (
+                <div className="px-4 py-3 text-[12px] text-gray-400 text-center">No results for "{globalSearch}"</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Notifications bell */}

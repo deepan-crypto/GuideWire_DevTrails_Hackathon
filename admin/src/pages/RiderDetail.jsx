@@ -50,6 +50,15 @@ export default function RiderDetail() {
   const { riderId } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('Related')
+  const [toast, setToast] = useState(null)
+  const [newTaskText, setNewTaskText] = useState('')
+  const [tasks, setTasks] = useState([])
+  const [bottomTab, setBottomTab] = useState('history')
+  const [notes, setNotes] = useState([])
+  const [noteText, setNoteText] = useState('')
+  const [showNoteInput, setShowNoteInput] = useState(false)
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -113,6 +122,35 @@ export default function RiderDetail() {
 
   return (
     <div>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-gw-header text-white px-4 py-2.5 rounded shadow-lg text-[12px] font-medium flex items-center gap-2 animate-[fadeIn_0.3s_ease-out]">
+          <CheckCircle className="w-4 h-4 text-green-400" />
+          {toast}
+        </div>
+      )}
+
+      {/* Note Input Modal */}
+      {showNoteInput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowNoteInput(false)}>
+          <div className="bg-white rounded-lg shadow-2xl w-[400px]" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-gw-border bg-gw-blue rounded-t-lg text-white font-semibold text-[13px]">New Note</div>
+            <div className="p-4">
+              <textarea
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="Write a note about this rider..."
+                className="w-full h-24 border border-gw-border rounded p-2.5 text-[12px] focus:outline-none focus:border-gw-blue resize-none"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <button onClick={() => setShowNoteInput(false)} className="px-3 py-1.5 border border-gw-border rounded text-[11px] text-gw-text-muted hover:bg-gray-50">Cancel</button>
+                <button onClick={() => { if(noteText.trim()) { setNotes(prev => [...prev, { text: noteText, time: new Date().toLocaleTimeString() }]); setNoteText(''); setShowNoteInput(false); showToast('Note added successfully') } }} className="px-3 py-1.5 bg-gw-blue text-white rounded text-[11px] font-semibold hover:bg-gw-blue-dark">Save Note</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[11px] text-gw-text-muted mb-2">
         <Link to="/policy-center" className="hover:text-gw-blue transition-colors">PolicyCenter</Link>
@@ -138,13 +176,13 @@ export default function RiderDetail() {
           <h1 className="text-white text-[20px] font-bold tracking-tight">{rider.riderName}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
+          <button onClick={() => showToast('Edit mode enabled — changes will auto-save')} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
             <Edit className="w-3 h-3" /> Edit
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
+          <button onClick={() => showToast('New quote workflow initiated')} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
             <FilePlus className="w-3 h-3" /> New Quote
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
+          <button onClick={() => setShowNoteInput(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded text-white text-[11px] font-medium transition-colors">
             <StickyNote className="w-3 h-3" /> New Note
           </button>
         </div>
@@ -304,7 +342,7 @@ export default function RiderDetail() {
                     <div className="text-[10px] text-gw-text-muted uppercase tracking-wider font-medium">Total Due</div>
                     <div className="text-[16px] font-bold mt-0.5 text-gw-text">{billing.totalDue || '₹0.00'}</div>
                   </div>
-                  <button className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-medium hover:bg-gw-blue-dark transition-colors">
+                  <button onClick={() => showToast(`Payment of ${billing.totalDue} processed via Wallet Auto-Debit`)} className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-medium hover:bg-gw-blue-dark transition-colors">
                     Pay Now
                   </button>
                 </div>
@@ -387,24 +425,42 @@ export default function RiderDetail() {
             <div className="px-4 py-3">
               {/* New Task Bar */}
               <div className="flex items-center gap-2 mb-3">
-                <button className="px-3 py-1.5 bg-gw-blue-light text-gw-blue rounded text-[10.5px] font-semibold">New Task</button>
-                <button className="px-3 py-1.5 text-gw-text-muted rounded text-[10.5px] font-medium hover:bg-gw-bg transition-colors">Follow Up</button>
+                <button onClick={() => { setNewTaskText(''); }} className="px-3 py-1.5 bg-gw-blue-light text-gw-blue rounded text-[10.5px] font-semibold">New Task</button>
+                <button onClick={() => showToast('Follow-up scheduled for tomorrow')} className="px-3 py-1.5 text-gw-text-muted rounded text-[10.5px] font-medium hover:bg-gw-bg transition-colors">Follow Up</button>
               </div>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   placeholder="Create a Task..."
+                  value={newTaskText}
+                  onChange={e => setNewTaskText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && newTaskText.trim()) { setTasks(prev => [...prev, { text: newTaskText, time: new Date().toLocaleTimeString(), done: false }]); setNewTaskText(''); showToast('Task created') } }}
                   className="flex-1 bg-gw-bg border border-gw-border rounded text-[11px] px-3 py-1.5 focus:outline-none focus:border-gw-blue transition-colors"
                 />
-                <button className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-semibold hover:bg-gw-blue-dark transition-colors">
+                <button
+                  onClick={() => { if (newTaskText.trim()) { setTasks(prev => [...prev, { text: newTaskText, time: new Date().toLocaleTimeString(), done: false }]); setNewTaskText(''); showToast('Task created') } }}
+                  className="px-3 py-1.5 bg-gw-blue text-white rounded text-[10.5px] font-semibold hover:bg-gw-blue-dark transition-colors"
+                >
                   Add
                 </button>
               </div>
+              {/* Added tasks */}
+              {tasks.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {tasks.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-1 rounded bg-gw-bg/60">
+                      <input type="checkbox" checked={t.done} onChange={() => setTasks(prev => prev.map((task, idx) => idx === i ? { ...task, done: !task.done } : task))} className="rounded" />
+                      <span className={`text-[11px] flex-1 ${t.done ? 'line-through text-gw-text-muted' : 'text-gw-text'}`}>{t.text}</span>
+                      <span className="text-[9px] text-gw-text-muted font-mono">{t.time}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-2 text-[9.5px] text-gw-text-muted">
                 Filters: All times • All activities • All types
-                <span className="ml-4 text-gw-blue cursor-pointer hover:underline">Refresh</span>
+                <span className="ml-4 text-gw-blue cursor-pointer hover:underline" onClick={() => showToast('Activities refreshed')}>Refresh</span>
                 <span className="mx-1">•</span>
-                <span className="text-gw-blue cursor-pointer hover:underline">Expand All</span>
+                <span className="text-gw-blue cursor-pointer hover:underline" onClick={() => showToast('All sections expanded')}>Expand All</span>
                 <span className="mx-1">•</span>
                 <span className="text-gw-blue cursor-pointer hover:underline">View All</span>
               </div>
@@ -474,13 +530,55 @@ export default function RiderDetail() {
       </div>
 
       {/* Bottom tabs - History / Notes */}
-      <div className="mt-4 bg-white rounded border border-gw-border px-4 py-2 flex items-center gap-4">
-        <span className="flex items-center gap-1.5 text-[11.5px] text-gw-text-muted font-medium cursor-pointer hover:text-gw-text transition-colors">
-          <Clock className="w-3.5 h-3.5" /> History
-        </span>
-        <span className="flex items-center gap-1.5 text-[11.5px] text-gw-text-muted font-medium cursor-pointer hover:text-gw-text transition-colors">
-          <StickyNote className="w-3.5 h-3.5" /> Notes
-        </span>
+      <div className="mt-4 bg-white rounded border border-gw-border">
+        <div className="px-4 py-2 flex items-center gap-4 border-b border-gw-border">
+          <button
+            onClick={() => setBottomTab('history')}
+            className={`flex items-center gap-1.5 text-[11.5px] font-medium cursor-pointer transition-colors ${bottomTab === 'history' ? 'text-gw-blue' : 'text-gw-text-muted hover:text-gw-text'}`}
+          >
+            <Clock className="w-3.5 h-3.5" /> History
+          </button>
+          <button
+            onClick={() => setBottomTab('notes')}
+            className={`flex items-center gap-1.5 text-[11.5px] font-medium cursor-pointer transition-colors ${bottomTab === 'notes' ? 'text-gw-blue' : 'text-gw-text-muted hover:text-gw-text'}`}
+          >
+            <StickyNote className="w-3.5 h-3.5" /> Notes ({notes.length})
+          </button>
+        </div>
+        {bottomTab === 'history' && (
+          <div className="px-4 py-3 text-[11px] text-gw-text-muted space-y-2">
+            <div className="flex items-center gap-2 text-[11px]">
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span>Policy {rider.policyNumber || rider.id} created on {rider.startDate}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px]">
+              <CheckCircle className="w-3 h-3 text-green-500" />
+              <span>Rider {rider.riderName} registered successfully</span>
+            </div>
+            {claims.length > 0 && claims.map((c, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px]">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span>Claim {c.claimNumber} filed — {c.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {bottomTab === 'notes' && (
+          <div className="px-4 py-3">
+            {notes.length === 0 ? (
+              <div className="text-[12px] text-gw-text-muted text-center py-4">No notes yet. Click "New Note" to add one.</div>
+            ) : (
+              <div className="space-y-2">
+                {notes.map((n, i) => (
+                  <div key={i} className="bg-gw-bg rounded p-2.5 border border-gw-border">
+                    <div className="text-[12px] text-gw-text">{n.text}</div>
+                    <div className="text-[9px] text-gw-text-muted mt-1 font-mono">Added at {n.time}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

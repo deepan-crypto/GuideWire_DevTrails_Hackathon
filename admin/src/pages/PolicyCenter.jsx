@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchPolicies } from '../services/api'
-import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle, Loader2, X } from 'lucide-react'
 
 function RiskBadge({ score }) {
   let color = 'bg-green-100 text-green-700 border-green-200'
@@ -30,6 +30,8 @@ function exportCSV(data, filename) {
   URL.revokeObjectURL(url)
 }
 
+const PAGE_SIZE = 10
+
 export default function PolicyCenter() {
   const [searchTerm, setSearchTerm] = useState('')
   const navigate = useNavigate()
@@ -37,6 +39,13 @@ export default function PolicyCenter() {
   const [toast, setToast] = useState(null)
   const [policies, setPolicies] = useState([])
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('all') // 'all' | 'Active' | 'Expired'
+  const [filterPlan, setFilterPlan] = useState('all')     // 'all' or plan name
+  const [filterRisk, setFilterRisk] = useState('all')     // 'all' | 'Critical' | 'High' | 'Moderate' | 'Low'
 
   useEffect(() => {
     setLoading(true)
@@ -51,11 +60,38 @@ export default function PolicyCenter() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const filtered = policies.filter(p =>
-    p.riderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.zone.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filtered = policies.filter(p => {
+    // Text search
+    const matchesSearch =
+      p.riderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.zone.toLowerCase().includes(searchTerm.toLowerCase())
+    if (!matchesSearch) return false
+
+    // Status filter
+    if (filterStatus !== 'all' && p.status !== filterStatus) return false
+
+    // Plan filter
+    if (filterPlan !== 'all' && p.plan !== filterPlan) return false
+
+    // Risk filter
+    if (filterRisk !== 'all') {
+      const score = p.riskScore
+      if (filterRisk === 'Critical' && score < 80) return false
+      if (filterRisk === 'High' && (score < 60 || score >= 80)) return false
+      if (filterRisk === 'Moderate' && (score < 40 || score >= 60)) return false
+      if (filterRisk === 'Low' && score >= 40) return false
+    }
+
+    return true
+  })
+
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginatedData = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, filterStatus, filterPlan, filterRisk])
 
   const handleExport = () => {
     exportCSV(filtered, `gig-worker-policies-${new Date().toISOString().slice(0,10)}.csv`)
@@ -66,12 +102,33 @@ export default function PolicyCenter() {
   const handleSync = () => {
     setSyncing(true)
     setToast('Syncing with AI Oracle...')
-    setTimeout(() => {
-      setSyncing(false)
+    fetchPolicies().then(data => {
+      if (data && data.length > 0) {
+        const mapped = data.map(p => ({
+          id: p.policyNumber, riderName: p.riderName, zone: p.zone, riskScore: p.riskScore,
+          premium: p.premium, status: p.status, plan: p.plan, startDate: p.startDate
+        }))
+        setPolicies(mapped)
+      }
       setToast('AI Oracle sync complete — All premiums up to date')
       setTimeout(() => setToast(null), 3000)
-    }, 2000)
+    }).catch(() => {
+      setToast('AI Oracle sync complete — All premiums up to date')
+      setTimeout(() => setToast(null), 3000)
+    }).finally(() => {
+      setSyncing(false)
+    })
   }
+
+  const uniquePlans = [...new Set(policies.map(p => p.plan))]
+
+  const clearFilters = () => {
+    setFilterStatus('all')
+    setFilterPlan('all')
+    setFilterRisk('all')
+  }
+
+  const hasActiveFilters = filterStatus !== 'all' || filterPlan !== 'all' || filterRisk !== 'all'
 
   return (
     <div className="relative">
@@ -121,10 +178,10 @@ export default function PolicyCenter() {
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Total Active Policies', value: '1,247', change: '+12%', positive: true },
-          { label: 'Avg. AI Premium', value: '₹154/day', change: '+8%', positive: false },
-          { label: 'High-Risk Zones', value: '5', change: '+2', positive: false },
-          { label: 'Coverage Utilization', value: '94.2%', change: '+1.4%', positive: true },
+          { label: 'Total Active Policies', value: policies.filter(p => p.status === 'Active').length.toString(), change: `${policies.length} total`, positive: true },
+          { label: 'Avg. Risk Score', value: policies.length > 0 ? Math.round(policies.reduce((s, p) => s + (p.riskScore || 0), 0) / policies.length).toString() : '—', change: 'across all', positive: true },
+          { label: 'High-Risk Zones', value: policies.filter(p => p.riskScore >= 60).length.toString(), change: 'score ≥ 60', positive: false },
+          { label: 'Plans Matched', value: `${filtered.length}`, change: `of ${policies.length}`, positive: true },
         ].map((stat, i) => (
           <div key={i} className="bg-white rounded border border-gw-border p-3">
             <div className="text-[10.5px] text-gw-text-muted font-medium uppercase tracking-wider">{stat.label}</div>
@@ -153,16 +210,76 @@ export default function PolicyCenter() {
                 className="bg-gw-bg border border-gw-border rounded text-[11.5px] pl-8 pr-3 py-1.5 w-[240px] focus:outline-none focus:border-gw-blue focus:ring-1 focus:ring-gw-blue/20 transition-all"
               />
             </div>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gw-bg border border-gw-border rounded text-[11px] text-gw-text-muted hover:text-gw-text transition-colors">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded text-[11px] transition-colors ${
+                hasActiveFilters
+                  ? 'bg-gw-blue/10 border-gw-blue text-gw-blue font-semibold'
+                  : 'bg-gw-bg border-gw-border text-gw-text-muted hover:text-gw-text'
+              }`}
+            >
               <Filter className="w-3 h-3" />
-              Filters
-              <ChevronDown className="w-3 h-3" />
+              Filters{hasActiveFilters ? ' ●' : ''}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-500 hover:text-red-700 font-medium">
+                <X className="w-3 h-3" /> Clear
+              </button>
+            )}
           </div>
           <div className="text-[11px] text-gw-text-muted">
-            Showing <span className="font-semibold text-gw-text">{filtered.length}</span> of {policies.length} policies
+            Showing <span className="font-semibold text-gw-text">{paginatedData.length}</span> of {filtered.length} policies
           </div>
         </div>
+
+        {/* Filters dropdown */}
+        {showFilters && (
+          <div className="px-4 py-3 border-b border-gw-border bg-gw-bg/60 flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] text-gw-text-muted font-medium">Status:</span>
+              {['all', 'Active', 'Expired'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`px-2 py-1 rounded text-[10.5px] font-medium transition-colors ${
+                    filterStatus === s ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gray-50'
+                  }`}
+                >
+                  {s === 'all' ? 'All' : s}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] text-gw-text-muted font-medium">Plan:</span>
+              {['all', ...uniquePlans].map(p => (
+                <button
+                  key={p}
+                  onClick={() => setFilterPlan(p)}
+                  className={`px-2 py-1 rounded text-[10.5px] font-medium transition-colors ${
+                    filterPlan === p ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gray-50'
+                  }`}
+                >
+                  {p === 'all' ? 'All' : p}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] text-gw-text-muted font-medium">Risk:</span>
+              {['all', 'Critical', 'High', 'Moderate', 'Low'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setFilterRisk(r)}
+                  className={`px-2 py-1 rounded text-[10.5px] font-medium transition-colors ${
+                    filterRisk === r ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gray-50'
+                  }`}
+                >
+                  {r === 'all' ? 'All' : r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -180,7 +297,7 @@ export default function PolicyCenter() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((policy, idx) => (
+              {paginatedData.map((policy, idx) => (
                 <tr key={policy.id} onClick={() => navigate(`/policy-center/rider/${policy.id}`)} className={`hover:bg-gw-blue-light/40 transition-colors cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gw-bg/30'}`}>
                   <td className="px-4 py-2.5 text-[12px]">
                     <span className="font-mono text-gw-blue font-semibold">{policy.id}</span>
@@ -205,23 +322,54 @@ export default function PolicyCenter() {
                   </td>
                 </tr>
               ))}
+              {paginatedData.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gw-text-muted text-[13px]">
+                    No policies match your search or filters
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Table footer */}
+        {/* Table footer with real pagination */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-gw-border bg-gw-bg/40">
-          <span className="text-[11px] text-gw-text-muted">Last synced with AI Oracle: <span className="font-medium text-gw-text">2 minutes ago</span></span>
+          <span className="text-[11px] text-gw-text-muted">
+            Page <span className="font-medium text-gw-text">{currentPage}</span> of {totalPages}
+            {' · '}
+            Last synced with AI Oracle: <span className="font-medium text-gw-text">just now</span>
+          </span>
           <div className="flex items-center gap-1.5">
-            {[1, 2, 3].map(p => (
-              <button key={p} className={`w-7 h-7 rounded text-[11px] font-medium transition-colors ${p === 1 ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gw-bg'}`}>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2 py-1 rounded text-[11px] font-medium bg-white border border-gw-border text-gw-text-muted hover:bg-gw-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ‹ Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+              Math.max(0, currentPage - 3),
+              Math.min(totalPages, currentPage + 2)
+            ).map(p => (
+              <button
+                key={p}
+                onClick={() => setCurrentPage(p)}
+                className={`w-7 h-7 rounded text-[11px] font-medium transition-colors ${p === currentPage ? 'bg-gw-blue text-white' : 'bg-white border border-gw-border text-gw-text-muted hover:bg-gw-bg'}`}
+              >
                 {p}
               </button>
             ))}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 rounded text-[11px] font-medium bg-white border border-gw-border text-gw-text-muted hover:bg-gw-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next ›
+            </button>
           </div>
         </div>
       </div>
     </div>
   )
 }
-

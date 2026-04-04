@@ -81,8 +81,9 @@ export default function ClaimCenter() {
   const [liveLog, setLiveLog] = useState([])
   const [timer, setTimer] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
 
-  useEffect(() => {
+  const loadData = () => {
     setLoading(true)
     Promise.all([
       fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) }),
@@ -97,6 +98,10 @@ export default function ClaimCenter() {
         }
       })
     ]).finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   // Simulate live log appending
@@ -139,9 +144,13 @@ export default function ClaimCenter() {
             <LivePulse />
             {triggeredCount} Active Triggers
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-medium hover:bg-gw-blue-dark transition-colors shadow-sm">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Force Sync
+          <button
+            onClick={() => { setSyncing(true); loadData(); setTimeout(() => setSyncing(false), 1500) }}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-medium hover:bg-gw-blue-dark transition-colors shadow-sm disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Force Sync'}
           </button>
         </div>
       </div>
