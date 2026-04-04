@@ -191,37 +191,72 @@ public class InsuranceService {
 
                 List<Rider> activeRiders = riderRepo.findByZoneAndIsPolicyActiveTrue(zone);
                 for (Rider rider : activeRiders) {
-                    // ── Layer 3: Fraud Verification ──
+                    // ── Layer 3: Fraud Verification via ES-AI ML ──
                     boolean isFraud = false;
                     try {
-                        Map<String, Object> fraudPayload = new HashMap<>();
-                        fraudPayload.put("claim_id", "CLM-AUTO-" + rider.id + "-" + System.currentTimeMillis());
-                        fraudPayload.put("gps_lat", 13.08);
-                        fraudPayload.put("gps_lon", 80.27);
-                        fraudPayload.put("is_mock_flag", false);
-                        fraudPayload.put("network_rtt_ms", 35.0);
-                        fraudPayload.put("device_speed", 5.0);
-                        fraudPayload.put("altitude", 15.0);
-                        fraudPayload.put("asn_type", "mobile");
+                        Map<String, Object> unifiedPayload = new HashMap<>();
+                        unifiedPayload.put("request_id", "req_" + System.currentTimeMillis());
+                        
+                        Map<String, Object> claimContext = new HashMap<>();
+                        String claimId = "CLM-AUTO-" + rider.id + "-" + System.currentTimeMillis();
+                        claimContext.put("claim_id", claimId);
+                        claimContext.put("user_id", rider.workerId != null ? rider.workerId : String.valueOf(rider.id));
+                        claimContext.put("disruption_type", "Heavy Rain");
+                        claimContext.put("hours", 4);
+                        claimContext.put("note", "Auto-parametric trigger");
+                        claimContext.put("claim_timestamp", LocalDateTime.now().toString());
+                        claimContext.put("claim_location", Map.of("lat", 13.08, "lng", 80.27));
+                        claimContext.put("evidence", new ArrayList<>());
+                        unifiedPayload.put("claim_context", claimContext);
+                        
+                        unifiedPayload.put("current_location", Map.of("lat", 13.08, "lng", 80.27, "accuracy", 10, "source", "gps"));
+                        unifiedPayload.put("location_history_last_1h", new ArrayList<>());
+                        
+                        Map<String, Object> userProfile = new HashMap<>();
+                        userProfile.put("segment", "transportation");
+                        userProfile.put("platform", rider.platform != null ? rider.platform : "Unknown");
+                        userProfile.put("zone", rider.zone);
+                        userProfile.put("work_shift", "day");
+                        userProfile.put("work_hours", 8);
+                        userProfile.put("daily_earnings", rider.walletBalance > 0 ? rider.walletBalance : 1000.0);
+                        userProfile.put("order_capacity", 50);
+                        unifiedPayload.put("user_profile", userProfile);
+                        
+                        Map<String, Object> policyContext = new HashMap<>();
+                        policyContext.put("tier", rider.policyTier);
+                        policyContext.put("active", true);
+                        policyContext.put("fraud_strike_count", 0);
+                        unifiedPayload.put("policy_context", policyContext);
+                        
+                        Map<String, Object> previousClaims = new HashMap<>();
+                        previousClaims.put("window_days", 90);
+                        previousClaims.put("total_count", 0);
+                        previousClaims.put("approved_count", 0);
+                        previousClaims.put("pending_count", 0);
+                        previousClaims.put("rejected_count", 0);
+                        previousClaims.put("fraud_flag_count", 0);
+                        previousClaims.put("avg_ai_score", 0.5);
+                        previousClaims.put("recent", new ArrayList<>());
+                        unifiedPayload.put("previous_claims", previousClaims);
 
                         FraudCheckResponse fraudCheck = restTemplate.postForObject(
-                            oracleBaseUrl + "/api/v1/oracle/verify-claim",
-                            fraudPayload, FraudCheckResponse.class);
+                            oracleBaseUrl + "/v1/claims/fraud-score",
+                            unifiedPayload, FraudCheckResponse.class);
 
                         if (fraudCheck != null) {
                             isFraud = Boolean.TRUE.equals(fraudCheck.fraud_flag);
 
                             // Log fraud check result
                             FraudLog log = new FraudLog();
-                            log.claimId = fraudCheck.claim_id;
+                            log.claimId = claimId;
                             log.riderId = rider.id;
                             log.riderName = rider.name;
                             log.fraudFlag = fraudCheck.fraud_flag;
-                            log.confidenceScore = fraudCheck.confidence_score;
+                            log.confidenceScore = 1.0 - (fraudCheck.fraud_score != null ? fraudCheck.fraud_score : 0.0);
                             log.fraudScore = fraudCheck.fraud_score;
-                            log.mlPrediction = fraudCheck.ml_prediction;
-                            log.fraudReasons = fraudCheck.fraud_reasons != null ?
-                                String.join(",", fraudCheck.fraud_reasons) : "";
+                            log.mlPrediction = isFraud ? "FRAUD" : "NORMAL";
+                            log.fraudReasons = fraudCheck.reason_codes != null ?
+                                String.join(",", fraudCheck.reason_codes) : "";
                             log.zone = zone;
                             log.gpsLat = 13.08;
                             log.gpsLon = 80.27;

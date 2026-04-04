@@ -1,39 +1,72 @@
 # ──────────────────────────────────────────────
-# Core Framework
+# Python
 # ──────────────────────────────────────────────
-fastapi[standard]==0.115.*
-uvicorn[standard]==0.34.*
-pydantic>=2.0,<3.0
-pydantic-settings>=2.0,<3.0
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
 
 # ──────────────────────────────────────────────
-# Machine Learning
+# Virtual Environment
 # ──────────────────────────────────────────────
-scikit-learn==1.6.*
-xgboost==2.1.*
-shap==0.46.*
-imbalanced-learn==0.12.*
+venv/
+.venv/
+env/
+.env
 
 # ──────────────────────────────────────────────
-# Data Processing
+# IDE / Editor
 # ──────────────────────────────────────────────
-pandas==2.2.*
-numpy==2.1.*
-pyarrow==18.*
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
 
 # ──────────────────────────────────────────────
-# Synthetic Data Generation
+# ML Artifacts (large binaries — don't commit)
 # ──────────────────────────────────────────────
-faker==33.*
+models/artifacts/*.joblib
+models/artifacts/*.pkl
+models/artifacts/*.json
+!models/artifacts/.gitkeep
 
 # ──────────────────────────────────────────────
-# Utilities
+# Generated Data (large files — don't commit)
 # ──────────────────────────────────────────────
-joblib==1.4.*
-python-dotenv==1.0.*
+data/synthetic/*.parquet
+data/synthetic/*.csv
+!data/synthetic/.gitkeep
 
 # ──────────────────────────────────────────────
-# Testing
+# Jupyter Notebooks
 # ──────────────────────────────────────────────
-pytest==8.*
-httpx==0.28.*
+.ipynb_checkpoints/
+*.ipynb
+
+# ──────────────────────────────────────────────
+# OS
+# ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ──────────────────────────────────────────────
+# Logs & Temp
+# ──────────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+
+# ──────────────────────────────────────────────
+# Misc
+# ──────────────────────────────────────────────
+.qodo/

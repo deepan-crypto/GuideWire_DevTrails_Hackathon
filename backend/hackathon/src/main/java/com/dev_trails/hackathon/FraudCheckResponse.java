@@ -8,7 +8,7 @@ public class FraudCheckResponse {
     public Boolean fraud_flag;
     public Double confidence_score;
     public Double fraud_score;
-    public String ml_prediction;
-    public List<String> fraud_reasons;
-    public String timestamp;
+    public String recommended_status;
+    public List<String> reason_codes;
+    public String model_version;
 }
