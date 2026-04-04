@@ -141,12 +141,20 @@ export default function ActivateScreen() {
           age: parseInt(age, 10),
           workerId: workerId.toUpperCase(),
         });
-        // 2. Buy the selected plan tier
-        const tier = (plan || 'standard').toLowerCase();
-        await buyPolicy(rider.id, tier);
-        // 3. Persist onboarding state with riderId
+        // 2. Persist onboarding state with riderId to retain session
         await setOnboardingComplete(rider.id);
-        router.replace('/(worker-tabs)' as any);
+
+        // 3. Navigate to mock payment screen to buy the first week policy
+        const tier = (plan || 'standard').toLowerCase();
+        
+        let premiumParams = { premium: '50', payout: '500' };
+        if (tier === 'basic') premiumParams = { premium: '25', payout: '300' };
+        else if (tier === 'pro') premiumParams = { premium: '100', payout: '1000' };
+
+        router.replace({
+          pathname: '/payment',
+          params: { tier, ...premiumParams }
+        } as any);
       } catch (e: any) {
         setError('Could not connect to server. Please try again.');
       } finally {
