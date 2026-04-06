@@ -2,6 +2,10 @@
 
 **Submission for Guidewire DEVTrails 2026 – Phase 1 (Seed)**
 
+admin panerl : https://guide-wire-dev-trails-hackathon.vercel.app/
+
+riders apk : https://github.com/deepan-crypto/GuideWire_DevTrails_Hackathon/releases
+
 📖 Table of Contents
 --------------------
 
