@@ -1,6 +1,7 @@
 ⚡ RiskWire: AI-Powered Parametric Income Protection (Aegis Architecture)
 ========================================================================
 
+admin panel : https://guide-wire-dev-trails-hackathon.vercel.app/
 **Submission for Guidewire DEVTrails 2026**
 
 **Team INNOVEX:** Deepan G, Saravanakarthiek S, Sairam D, Anumitha V
