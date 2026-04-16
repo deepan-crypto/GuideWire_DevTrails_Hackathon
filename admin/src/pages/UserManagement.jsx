@@ -78,6 +78,48 @@ function AuditIcon({ type }) {
   return <Clock className={`${cls} text-gray-400`} />
 }
 
+function RiderDetailModal({ rider, onClose }) {
+  if (!rider) return null
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <span className="font-bold text-[14px] text-gw-text">Rider Profile</span>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none">&times;</button>
+        </div>
+        <div className="px-5 py-5 space-y-3">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 rounded-full bg-gw-blue text-white flex items-center justify-center font-bold text-[16px]">
+              {rider.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+            </div>
+            <div>
+              <div className="font-bold text-[15px] text-gw-text">{rider.name}</div>
+              <div className="text-[11.5px] text-gw-text-muted">{rider.phone} · {rider.platform}</div>
+            </div>
+          </div>
+          {[
+            ['Rider ID', `R-${String(rider.id).padStart(4, '0')}`],
+            ['City / Zone', `${rider.city} · ${rider.zone}`],
+            ['Age', `${rider.age} years`],
+            ['Policy Tier', rider.policyTier || 'None'],
+            ['Policy Status', rider.isPolicyActive ? '✅ Active' : '❌ Inactive'],
+            ['Wallet Balance', `₹${rider.walletBalance.toLocaleString()}`],
+            ['Registered', rider.registeredAt],
+          ].map(([k, v]) => (
+            <div key={k} className="flex justify-between text-[11.5px]">
+              <span className="text-gw-text-muted font-medium">{k}</span>
+              <span className="font-semibold text-gw-text">{v}</span>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
+          <button onClick={onClose} className="px-4 py-1.5 bg-gw-blue text-white rounded text-[12px] font-semibold hover:bg-blue-700 transition-colors">Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function exportCSV(data, filename) {
   const headers = ['ID', 'Name', 'Phone', 'City', 'Zone', 'Platform', 'Age', 'Policy Active', 'Tier', 'Wallet Balance', 'Registered']
   const rows = data.map(r => [r.id, r.name, r.phone, r.city, r.zone, r.platform, r.age, r.isPolicyActive, r.policyTier || '-', r.walletBalance, r.registeredAt])
@@ -95,22 +137,51 @@ export default function UserManagement() {
   const [search, setSearch] = useState('')
   const [riders, setRiders] = useState(MOCK_RIDERS)
   const [toast, setToast] = useState(null)
+  const [viewRider, setViewRider] = useState(null)
+  const [filterStatus, setFilterStatus] = useState('all') // 'all' | 'active' | 'inactive'
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const PAGE_SIZE = 5
+  const [page, setPage] = useState(1)
 
+  const BASE_URL = 'http://localhost:8080'
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/admin/riders')
+    fetch(`${BASE_URL}/api/v1/admin/riders`)
       .then(r => r.json())
       .then(data => { if (data && data.length > 0) setRiders(data) })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
-  const filteredRiders = riders.filter(r =>
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.city.toLowerCase().includes(search.toLowerCase()) ||
-    r.zone.toLowerCase().includes(search.toLowerCase()) ||
-    r.phone.includes(search)
-  )
+  const filteredRiders = riders.filter(r => {
+    const matchSearch =
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.city.toLowerCase().includes(search.toLowerCase()) ||
+      r.zone.toLowerCase().includes(search.toLowerCase()) ||
+      r.phone.includes(search)
+    const matchStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'active' && r.isPolicyActive) ||
+      (filterStatus === 'inactive' && !r.isPolicyActive)
+    return matchSearch && matchStatus
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filteredRiders.length / PAGE_SIZE))
+  const pagedRiders = filteredRiders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  const handleSuspend = (rider) => {
+    setRiders(prev => prev.map(r =>
+      r.id === rider.id ? { ...r, isPolicyActive: false, policyTier: null } : r
+    ))
+    showToast(`Rider ${rider.name} suspended — policy deactivated`)
+  }
+
+  const handleReset = (rider) => {
+    setRiders(prev => prev.map(r =>
+      r.id === rider.id ? { ...r, walletBalance: 500, isPolicyActive: false } : r
+    ))
+    showToast(`Rider ${rider.name} wallet reset to ₹500`)
+  }
 
   const TABS = [
     { id: 'riders', label: 'Rider Registry', count: riders.length },
@@ -121,6 +192,8 @@ export default function UserManagement() {
 
   return (
     <div className="relative">
+      {/* Rider detail modal */}
+      <RiderDetailModal rider={viewRider} onClose={() => setViewRider(null)} />
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-gw-header text-white px-4 py-2.5 rounded shadow-lg text-[12px] font-medium flex items-center gap-2">
@@ -137,7 +210,7 @@ export default function UserManagement() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { exportCSV(riders, `riders-${new Date().toISOString().slice(0,10)}.csv`); showToast('Exported ' + riders.length + ' riders to CSV') }}
+            onClick={() => { exportCSV(riders, `riders-${new Date().toISOString().slice(0, 10)}.csv`); showToast('Exported ' + riders.length + ' riders to CSV') }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gw-border rounded text-[11.5px] font-medium text-gw-text hover:bg-gray-50"
           >
             <Download className="w-3.5 h-3.5" /> Export
@@ -157,16 +230,14 @@ export default function UserManagement() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-[12px] font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-gw-blue text-gw-blue bg-blue-50/50'
-                : 'border-transparent text-gw-text-muted hover:text-gw-text hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2.5 text-[12px] font-medium border-b-2 transition-colors ${activeTab === tab.id
+              ? 'border-gw-blue text-gw-blue bg-blue-50/50'
+              : 'border-transparent text-gw-text-muted hover:text-gw-text hover:bg-gray-50'
+              }`}
           >
             {tab.label}
-            <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold ${
-              activeTab === tab.id ? 'bg-gw-blue text-white' : 'bg-gray-100 text-gray-500'
-            }`}>{tab.count}</span>
+            <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold ${activeTab === tab.id ? 'bg-gw-blue text-white' : 'bg-gray-100 text-gray-500'
+              }`}>{tab.count}</span>
           </button>
         ))}
       </div>
@@ -181,16 +252,31 @@ export default function UserManagement() {
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text" placeholder="Search riders..."
-                  value={search} onChange={e => setSearch(e.target.value)}
+                  value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
                   className="pl-8 pr-3 py-1.5 border border-gw-border rounded text-[11.5px] w-[240px] focus:outline-none focus:border-gw-blue/50"
                 />
               </div>
               <span className="text-[11px] text-gw-text-muted">{filteredRiders.length} of {riders.length} riders</span>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1 px-2.5 py-1.5 border border-gw-border rounded text-[11px] text-gw-text-muted hover:bg-gray-50">
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(m => !m)}
+                className="flex items-center gap-1 px-2.5 py-1.5 border border-gw-border rounded text-[11px] text-gw-text-muted hover:bg-gray-50"
+              >
                 <Filter className="w-3 h-3" /> Filter <ChevronDown className="w-3 h-3" />
               </button>
+              {showFilterMenu && (
+                <div className="absolute right-0 top-8 w-36 bg-white rounded shadow-lg border border-gray-100 z-20 py-1">
+                  {[['all', 'All Riders'], ['active', 'Active Only'], ['inactive', 'Inactive Only']].map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => { setFilterStatus(v); setShowFilterMenu(false); setPage(1) }}
+                      className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-blue-50 transition-colors ${filterStatus === v ? 'font-semibold text-gw-blue' : 'text-gw-text'
+                        }`}
+                    >{l}</button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -212,7 +298,7 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRiders.map((r, i) => (
+                {pagedRiders.map((r, i) => (
                   <tr key={r.id} className={`border-b border-gw-border hover:bg-blue-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                     <td className="px-4 py-2.5 font-mono text-gw-blue font-semibold">R-{String(r.id).padStart(4, '0')}</td>
                     <td className="px-4 py-2.5 font-medium text-gw-text">{r.name}</td>
@@ -228,9 +314,18 @@ export default function UserManagement() {
                     <td className="px-4 py-2.5 text-gw-text-muted">{r.registeredAt}</td>
                     <td className="px-4 py-2.5 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1 rounded hover:bg-blue-100" title="View"><Eye className="w-3.5 h-3.5 text-gw-blue" /></button>
-                        <button className="p-1 rounded hover:bg-red-100" title="Suspend"><Ban className="w-3.5 h-3.5 text-red-400" /></button>
-                        <button className="p-1 rounded hover:bg-green-100" title="Reset"><RotateCcw className="w-3.5 h-3.5 text-green-500" /></button>
+                        <button
+                          className="p-1 rounded hover:bg-blue-100" title="View"
+                          onClick={() => setViewRider(r)}
+                        ><Eye className="w-3.5 h-3.5 text-gw-blue" /></button>
+                        <button
+                          className="p-1 rounded hover:bg-red-100" title="Suspend"
+                          onClick={() => handleSuspend(r)}
+                        ><Ban className="w-3.5 h-3.5 text-red-400" /></button>
+                        <button
+                          className="p-1 rounded hover:bg-green-100" title="Reset"
+                          onClick={() => handleReset(r)}
+                        ><RotateCcw className="w-3.5 h-3.5 text-green-500" /></button>
                       </div>
                     </td>
                   </tr>
@@ -240,11 +335,26 @@ export default function UserManagement() {
           </div>
           {/* Pagination footer */}
           <div className="flex items-center justify-between px-4 py-2.5 bg-gw-bg border-t border-gw-border text-[11px] text-gw-text-muted">
-            <span>Showing 1–{filteredRiders.length} of {riders.length} riders</span>
+            <span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredRiders.length)} of {filteredRiders.length} riders</span>
             <div className="flex items-center gap-1">
-              <button className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50">‹ Prev</button>
-              <button className="px-2 py-1 border border-gw-border rounded bg-gw-blue text-white font-semibold">1</button>
-              <button className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50">Next ›</button>
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50 disabled:opacity-40"
+              >‹ Prev</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`px-2 py-1 border border-gw-border rounded font-semibold ${p === page ? 'bg-gw-blue text-white' : 'bg-white hover:bg-gray-50'
+                    }`}
+                >{p}</button>
+              ))}
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="px-2 py-1 border border-gw-border rounded bg-white hover:bg-gray-50 disabled:opacity-40"
+              >Next ›</button>
             </div>
           </div>
         </div>
@@ -271,18 +381,17 @@ export default function UserManagement() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-gw-blue text-white flex items-center justify-center text-[10px] font-bold">
-                          {u.name.split(' ').map(w => w[0]).join('').slice(0,2)}
+                          {u.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
                         </div>
                         <span className="font-medium text-gw-text">{u.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gw-text-muted">{u.email}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-[10.5px] font-semibold border ${
-                        u.role === 'Super Admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                      <span className={`px-2 py-0.5 rounded text-[10.5px] font-semibold border ${u.role === 'Super Admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
                         u.role === 'System' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                        'bg-blue-100 text-blue-700 border-blue-200'
-                      }`}>{u.role}</span>
+                          'bg-blue-100 text-blue-700 border-blue-200'
+                        }`}>{u.role}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-green-700">

@@ -10,11 +10,13 @@ import {
   Platform,
   Modal,
   FlatList,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
-import { router, Redirect } from 'expo-router';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronDown, Search, Phone, User, X, Clock } from 'lucide-react-native';
-import { setOnboardingComplete } from '@/utils/onboardingState';
+import { ChevronDown, Search, Phone, User, X, Clock, CheckCircle, AlertCircle, Shield, Camera } from 'lucide-react-native';
+import { isOnboardingComplete, loadOnboardingState } from '@/utils/onboardingState';
 
 const AGES = Array.from({ length: 63 }, (_, i) => `${i + 18}`);
 
@@ -24,107 +26,236 @@ const POPULAR_CITIES = [
   'Kolkata', 'Ahmedabad', 'Jaipur', 'Surat', 'Lucknow',
 ];
 
+const GIG_PLATFORMS = [
+  { id: 'swiggy', name: 'Swiggy', emoji: '🟠' },
+  { id: 'zomato', name: 'Zomato', emoji: '🔴' },
+  { id: 'uber', name: 'Uber', emoji: '⚫' },
+  { id: 'ola', name: 'Ola Cabs', emoji: '🟢' },
+  { id: 'dunzo', name: 'Dunzo', emoji: '🔵' },
+  { id: 'blinkit', name: 'Blinkit', emoji: '🟡' },
+  { id: 'zepto', name: 'Zepto', emoji: '💜' },
+  { id: 'porter', name: 'Porter', emoji: '🔶' },
+  { id: 'rapido', name: 'Rapido', emoji: '🏍️' },
+  { id: 'other', name: 'Other', emoji: '📦' },
+];
+
+// STEP 1 = Gig platform selection (verification)
+// STEP 2 = Worker ID verification
+// STEP 3 = Age selection
+// STEP 4 = City selection
+// STEP 5 = (go to plans page)
+const TOTAL_STEPS = 4;
+const STEP_TITLES = [
+  'Verify your gig platform',
+  'Enter your worker ID',
+  'Tell us your age',
+  'Where are you based?',
+];
+
 export default function OnboardingScreen() {
-  // Skip onboarding — go directly to home
-  return <Redirect href="/(tabs)" />;
   const [step, setStep] = useState(1);
+  const [platform, setPlatform] = useState('');
+  const [workerId, setWorkerId] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
   const [age, setAge] = useState('');
   const [city, setCity] = useState('');
   const [citySearch, setCitySearch] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [showAgePicker, setShowAgePicker] = useState(false);
+
+  // If already onboarded, skip to home
+  useEffect(() => {
+    loadOnboardingState().then((done) => {
+      if (done) router.replace('/(worker-tabs)' as any);
+    });
+  }, []);
 
   const filteredCities = POPULAR_CITIES.filter((c) =>
     c.toLowerCase().includes(citySearch.toLowerCase())
   );
 
+  const selectedPlatform = GIG_PLATFORMS.find(p => p.id === platform);
+
+  const canContinue =
+    (step === 1 && platform !== '') ||
+    (step === 2 && verified) ||
+    (step === 3 && age !== '') ||
+    (step === 4 && city !== '');
+
+  const handleVerifyId = async () => {
+    if (!workerId.trim()) return;
+    setVerifying(true);
+    setVerifyError('');
+    // Simulate API verification (mock — backend accepts any 6+ char ID)
+    await new Promise(r => setTimeout(r, 1800));
+    if (workerId.trim().length >= 4) {
+      setVerified(true);
+    } else {
+      setVerifyError('Worker ID not found. Check your partner app.');
+    }
+    setVerifying(false);
+  };
+
   const handleContinue = () => {
-    if (step < 3) {
+    if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Navigate to home screen to browse and choose plans
-      // Onboarding is NOT marked complete yet — that happens after plan activation
-      router.replace('/(tabs)' as any);
+      // Done with onboarding — go to plans page (passing city & platform info)
+      router.push({
+        pathname: '/plans' as any,
+        params: { city, platform, age },
+      });
     }
   };
 
-  const canContinue =
-    (step === 1 && age !== '') ||
-    (step === 2 && city !== '') ||
-    (step === 3 && name.trim() !== '' && phone.length >= 10);
-
-  const stepTitles = ['Select your age', 'Select your city', 'Save your progress'];
+  const progress = (step / (TOTAL_STEPS + 1)) * 100;
 
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={['#0066CC', '#0052A3']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerRow}>
-          {step > 1 ? (
-            <TouchableOpacity style={styles.backBtn} onPress={() => setStep(step - 1)}>
-              <Text style={styles.backArrow}>‹</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.backBtnPlaceholder} />
-          )}
-          <Text style={styles.headerTitle}>RiskWire</Text>
-          <TouchableOpacity style={styles.helpBtn}>
-            <Phone size={13} color="#FFFFFF" />
-            <Text style={styles.helpText}>Help</Text>
-          </TouchableOpacity>
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <View style={styles.logoRow}>
+          <Text style={styles.logoText}>RiskWire</Text>
+          <Text style={styles.logoTagline}>MICRO-INSURANCE</Text>
         </View>
-
-        {/* Progress */}
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressLabel}>{step * 25}% complete</Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${step * 25}%` }]} />
-          </View>
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepBadgeText}>Step {step}/{TOTAL_STEPS}</Text>
         </View>
+      </View>
 
-        {/* Step title bubble */}
-        <View style={styles.stepTitleBox}>
-          <Text style={styles.stepTitle}>{stepTitles[step - 1]}</Text>
+      {/* Progress Bar */}
+      <View style={styles.progressBarContainer}>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
-      </LinearGradient>
+        <Text style={styles.progressLabel}>{Math.round(progress)}% complete</Text>
+      </View>
 
-      {/* ── Body ── */}
       <ScrollView
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* STEP 1: Age */}
-        {step === 1 && (
-          <View style={styles.stepContent}>
-            <View style={styles.infoCard}>
-              <Clock size={16} color="#0066CC" />
-              <Text style={styles.infoText}>
-                This will help us in calculating your{' '}
-                <Text style={styles.infoHighlight}>premium & discounts</Text>
-              </Text>
-            </View>
+        <Text style={styles.stepTitle}>{STEP_TITLES[step - 1]}</Text>
 
+        {/* STEP 1: Gig Platform Selection */}
+        {step === 1 && (
+          <View>
+            <Text style={styles.stepSubtitle}>
+              Select the platform you work with. We'll verify your gig worker status.
+            </Text>
+            <View style={styles.platformGrid}>
+              {GIG_PLATFORMS.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.platformCard, platform === p.id && styles.platformCardSel]}
+                  onPress={() => setPlatform(p.id)}
+                >
+                  <Text style={styles.platformEmoji}>{p.emoji}</Text>
+                  <Text style={[styles.platformName, platform === p.id && styles.platformNameSel]}>{p.name}</Text>
+                  {platform === p.id && (
+                    <View style={styles.platformCheck}>
+                      <CheckCircle size={14} color="#00A25B" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            {platform && (
+              <View style={styles.verificationBanner}>
+                <Shield size={16} color="#00529B" />
+                <Text style={styles.verificationBannerText}>
+                  We'll verify your {selectedPlatform?.name} worker ID in the next step
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* STEP 2: Worker ID Verification */}
+        {step === 2 && (
+          <View>
+            <Text style={styles.stepSubtitle}>
+              Enter your {selectedPlatform?.name} worker / delivery partner ID to verify your gig worker status.
+            </Text>
+            <View style={styles.verifyBox}>
+              <View style={[styles.platformBadge]}>
+                <Text style={styles.platformEmoji2}>{selectedPlatform?.emoji}</Text>
+                <Text style={styles.platformBadgeName}>{selectedPlatform?.name} Partner</Text>
+              </View>
+              <View style={styles.idField}>
+                <Text style={styles.idLabel}>Worker / Partner ID</Text>
+                <TextInput
+                  style={[styles.idInput, verified && styles.idInputVerified]}
+                  placeholder="e.g. SWG-78432 or ZOM-99123"
+                  placeholderTextColor="#AAA"
+                  value={workerId}
+                  onChangeText={(t) => { setWorkerId(t); setVerified(false); setVerifyError(''); }}
+                  autoCapitalize="characters"
+                  editable={!verified}
+                />
+                {verified && (
+                  <View style={styles.verifiedBadge}>
+                    <CheckCircle size={14} color="#00A25B" />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                )}
+              </View>
+              {!!verifyError && (
+                <View style={styles.errorRow}>
+                  <AlertCircle size={13} color="#DC2626" />
+                  <Text style={styles.errorText}>{verifyError}</Text>
+                </View>
+              )}
+              {!verified && (
+                <TouchableOpacity
+                  style={[styles.verifyBtn, (!workerId.trim() || verifying) && styles.verifyBtnDisabled]}
+                  onPress={handleVerifyId}
+                  disabled={!workerId.trim() || verifying}
+                >
+                  {verifying ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.verifyBtnText}>Verify Worker ID</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+              {verified && (
+                <View style={styles.successBox}>
+                  <CheckCircle size={20} color="#00A25B" />
+                  <View>
+                    <Text style={styles.successTitle}>Identity Confirmed!</Text>
+                    <Text style={styles.successSub}>You are eligible for gig worker micro-insurance</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* STEP 3: Age */}
+        {step === 3 && (
+          <View>
+            <Text style={styles.stepSubtitle}>
+              Your age helps us calculate your personalized premium.
+            </Text>
             <TouchableOpacity
               style={styles.dropdown}
               onPress={() => setShowAgePicker(true)}
             >
-              <Text style={age ? styles.dropdownValue : styles.dropdownPlaceholder}>
-                {age ? `${age} years` : 'Your age'}
-              </Text>
-              <ChevronDown size={20} color="#0066CC" />
+              <Text style={styles.dropdownLabel}>Your age</Text>
+              <View style={styles.dropdownValue}>
+                <Text style={age ? styles.dropdownValueText : styles.dropdownPlaceholder}>
+                  {age ? `${age} years old` : 'Select your age'}
+                </Text>
+                <ChevronDown size={18} color="#555" />
+              </View>
             </TouchableOpacity>
-
             <Modal
               visible={showAgePicker}
               transparent
@@ -147,7 +278,7 @@ export default function OnboardingScreen() {
                         style={[styles.ageOption, age === item && styles.ageOptionSelected]}
                         onPress={() => { setAge(item); setShowAgePicker(false); }}
                       >
-                        <Text style={[styles.ageOptionText, age === item && styles.ageOptionTextSelected]}>
+                        <Text style={[styles.ageOptionText, age === item && styles.ageOptionTextSel]}>
                           {item} years
                         </Text>
                       </TouchableOpacity>
@@ -159,19 +290,14 @@ export default function OnboardingScreen() {
           </View>
         )}
 
-        {/* STEP 2: City */}
-        {step === 2 && (
-          <View style={styles.stepContent}>
-            <View style={styles.infoCard}>
-              <Text style={styles.cityEmoji}>🏥</Text>
-              <Text style={styles.infoText}>
-                This will help us find the network of{' '}
-                <Text style={styles.infoHighlight}>Cashless Hospitals</Text> in your city
-              </Text>
-            </View>
-
+        {/* STEP 4: City */}
+        {step === 4 && (
+          <View>
+            <Text style={styles.stepSubtitle}>
+              Your city determines local AQI and weather risk zones.
+            </Text>
             <View style={styles.searchBox}>
-              <Search size={18} color="#0066CC" />
+              <Search size={16} color="#555" />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search your city"
@@ -179,8 +305,12 @@ export default function OnboardingScreen() {
                 value={citySearch}
                 onChangeText={setCitySearch}
               />
+              {citySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCitySearch('')}>
+                  <X size={16} color="#999" />
+                </TouchableOpacity>
+              )}
             </View>
-
             <Text style={styles.sectionLabel}>Popular cities</Text>
             <View style={styles.chipGrid}>
               {filteredCities.map((c) => (
@@ -189,222 +319,151 @@ export default function OnboardingScreen() {
                   style={[styles.chip, city === c && styles.chipSelected]}
                   onPress={() => setCity(c)}
                 >
-                  <Text style={[styles.chipText, city === c && styles.chipTextSelected]}>{c}</Text>
+                  <Text style={[styles.chipText, city === c && styles.chipTextSel]}>{c}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         )}
 
-        {/* STEP 3: Name + Phone */}
-        {step === 3 && (
-          <View style={styles.stepContent}>
-            <Text style={styles.saveSubtitle}>
-              Get to plans directly next time you visit us
-            </Text>
-
-            <View style={styles.floatField}>
-              <User size={16} color="#0066CC" />
-              <TextInput
-                style={styles.floatInput}
-                placeholder="Your full name"
-                placeholderTextColor="#AAA"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            <View style={styles.floatField}>
-              <View style={styles.countryCode}>
-                <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-                <ChevronDown size={13} color="#666" />
-              </View>
-              <TextInput
-                style={[styles.floatInput, { flex: 1 }]}
-                placeholder="Mobile number"
-                placeholderTextColor="#AAA"
-                keyboardType="phone-pad"
-                maxLength={10}
-                value={phone}
-                onChangeText={setPhone}
-              />
-            </View>
-
-            {/* Summary */}
-            <View style={styles.summaryCard}>
-              {[
-                '92+ plans found',
-                '19 insurers',
-                'Plans starting @270/month',
-                `460+ cashless hospitals in ${city || 'your city'}`,
-              ].map((line) => (
-                <View key={line} style={styles.summaryRow}>
-                  <View style={styles.summaryCheck}>
-                    <Text style={styles.summaryCheckText}>✓</Text>
-                  </View>
-                  <Text style={styles.summaryText}>{line}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* ── Footer ── */}
-      <View style={styles.footer}>
+        {/* Continue / Finish Button */}
         <TouchableOpacity
           style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
           onPress={handleContinue}
           disabled={!canContinue}
         >
-          <Text style={styles.continueBtnText}>Continue ›</Text>
+          <Text style={styles.continueBtnText}>
+            {step === TOTAL_STEPS ? 'Browse Insurance Plans →' : 'Continue →'}
+          </Text>
         </TouchableOpacity>
-      </View>
+
+        {/* Back */}
+        {step > 1 && (
+          <TouchableOpacity style={styles.backLink} onPress={() => setStep(step - 1)}>
+            <Text style={styles.backLinkText}>‹ Go back</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Trust footer */}
+        <View style={styles.trustFooter}>
+          <Shield size={14} color="#00529B" />
+          <Text style={styles.trustText}>
+            RiskWire · Powered by Guidewire Cloud · IRDAI Compliant
+          </Text>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const PRIMARY = '#0066CC';
-const PRIMARY_DARK = '#0052A3';
+// ── Styles ──────────────────────────────────────────────────────────────────
+const PRIMARY = '#E63946';
+const BRAND_BLUE = '#00529B';
+const BORDER = '#D1D5DB';
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
 
-  // Header
-  header: { paddingTop: 52, paddingBottom: 0 },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 16,
+  topBar: {
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    backgroundColor: '#FFF',
   },
-  backBtn: {
-    width: 34, height: 34, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  backBtnPlaceholder: { width: 34 },
-  backArrow: { fontSize: 22, color: '#FFF', lineHeight: 26 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
-  helpBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-  },
-  helpText: { fontSize: 13, color: '#FFFFFF', fontWeight: '600' },
+  logoRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  logoText: { fontSize: 22, fontWeight: '900', color: BRAND_BLUE, letterSpacing: -0.5, fontStyle: 'italic' },
+  logoTagline: { fontSize: 9, color: BRAND_BLUE, fontWeight: '600', opacity: 0.7, marginLeft: 6, alignSelf: 'flex-end', marginBottom: 2 },
+  stepBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  stepBadgeText: { fontSize: 11, fontWeight: '700', color: BRAND_BLUE },
 
-  // Progress
-  progressContainer: { paddingHorizontal: 16, marginBottom: 0 },
-  progressLabel: { fontSize: 12, color: '#E8F0FF', marginBottom: 6 },
-  progressTrack: { height: 5, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 3 },
-  progressFill: { height: 5, backgroundColor: '#FFFFFF', borderRadius: 3 },
+  progressBarContainer: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FFF' },
+  progressTrack: { height: 6, backgroundColor: '#E0E7FF', borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
+  progressFill: { height: '100%', backgroundColor: '#00A25B', borderRadius: 3 },
+  progressLabel: { fontSize: 11, fontWeight: '700', color: '#00A25B' },
 
-  // Step title bubble
-  stepTitleBox: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4,
-    marginTop: 20,
-  },
-  stepTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A1A' },
+  body: { flex: 1 },
+  bodyContent: { padding: 20, paddingBottom: 40 },
 
-  // Body
-  body: { flex: 1, backgroundColor: '#FFFFFF' },
-  bodyContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
-  stepContent: { gap: 16 },
+  stepTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginBottom: 6, lineHeight: 30 },
+  stepSubtitle: { fontSize: 13, color: '#666', marginBottom: 20, lineHeight: 20 },
 
-  // Info card
-  infoCard: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12, padding: 14,
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    borderLeftWidth: 3, borderLeftColor: PRIMARY,
+  // Gig platform grid
+  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  platformCard: {
+    width: '30%', borderWidth: 1.5, borderColor: BORDER, borderRadius: 12,
+    padding: 12, alignItems: 'center', gap: 6, backgroundColor: '#FFF',
   },
-  cityEmoji: { fontSize: 22 },
-  infoText: { flex: 1, fontSize: 13, color: '#444', lineHeight: 20 },
-  infoHighlight: { color: PRIMARY, fontWeight: '700' },
+  platformCardSel: { borderColor: '#00A25B', backgroundColor: '#F0FFF8' },
+  platformEmoji: { fontSize: 24 },
+  platformName: { fontSize: 11, fontWeight: '600', color: '#444', textAlign: 'center' },
+  platformNameSel: { color: '#00A25B' },
+  platformCheck: { position: 'absolute', top: 6, right: 6 },
+  verificationBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginBottom: 16,
+  },
+  verificationBannerText: { fontSize: 12, color: BRAND_BLUE, flex: 1, fontWeight: '600' },
 
-  // Dropdown
-  dropdown: {
-    backgroundColor: '#FFFFFF', borderRadius: 12,
-    borderWidth: 1.5, borderColor: '#D0D8E8',
-    paddingHorizontal: 16, paddingVertical: 16,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  // Worker ID verification
+  verifyBox: { gap: 14 },
+  platformBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F8F9FF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E0E7FF' },
+  platformEmoji2: { fontSize: 28 },
+  platformBadgeName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  idField: { backgroundColor: '#FFF', borderRadius: 10, borderWidth: 1, borderColor: BORDER, padding: 14, gap: 6 },
+  idLabel: { fontSize: 11, color: '#888', fontWeight: '600' },
+  idInput: { fontSize: 16, color: '#1A1A2E', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 1 },
+  idInputVerified: { color: '#00A25B' },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  verifiedText: { fontSize: 12, fontWeight: '700', color: '#00A25B' },
+  verifyBtn: {
+    backgroundColor: BRAND_BLUE, borderRadius: 10,
+    paddingVertical: 14, alignItems: 'center',
   },
-  dropdownPlaceholder: { fontSize: 15, color: '#AAA' },
-  dropdownValue: { fontSize: 15, color: '#1A1A1A', fontWeight: '600' },
+  verifyBtnDisabled: { backgroundColor: '#93B5D8' },
+  verifyBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  successBox: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F0FFF8', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#86EFAC' },
+  successTitle: { fontSize: 14, fontWeight: '800', color: '#14532D' },
+  successSub: { fontSize: 11, color: '#166534', marginTop: 2 },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  errorText: { fontSize: 12, color: '#DC2626', fontWeight: '600', flex: 1 },
 
-  // Age modal
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    maxHeight: '60%', paddingBottom: 24,
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, borderBottomWidth: 1, borderBottomColor: '#EEE',
-  },
+  // Age picker
+  dropdown: { borderWidth: 1, borderColor: BORDER, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 4, backgroundColor: '#FFF' },
+  dropdownLabel: { fontSize: 11, color: '#888', marginBottom: 4 },
+  dropdownValue: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8 },
+  dropdownValueText: { fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
+  dropdownPlaceholder: { fontSize: 16, color: '#AAA' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '60%', paddingBottom: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#EEE' },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
-  ageOption: {
-    paddingVertical: 14, paddingHorizontal: 20,
-    borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
-  },
-  ageOptionSelected: { backgroundColor: '#F0F7FF' },
+  ageOption: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  ageOptionSelected: { backgroundColor: '#FFF5F5' },
   ageOptionText: { fontSize: 15, color: '#333' },
-  ageOptionTextSelected: { color: PRIMARY, fontWeight: '700' },
+  ageOptionTextSel: { color: PRIMARY, fontWeight: '700' },
 
   // City
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 12,
-    borderWidth: 1.5, borderColor: '#D0D8E8',
-    paddingHorizontal: 14, paddingVertical: 12,
-  },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF', borderRadius: 10, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
   searchInput: { flex: 1, fontSize: 14, color: '#1A1A1A' },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#D0D8E8', backgroundColor: '#FFFFFF',
-  },
-  chipSelected: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A1A', marginBottom: 10 },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  chip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, borderColor: BORDER, backgroundColor: '#FFF' },
+  chipSelected: { backgroundColor: '#F0FFF8', borderColor: '#00A25B' },
   chipText: { fontSize: 13, color: '#333', fontWeight: '500' },
-  chipTextSelected: { color: '#FFF', fontWeight: '600' },
+  chipTextSel: { color: '#00A25B', fontWeight: '700' },
 
-  // Name + Phone
-  saveSubtitle: { fontSize: 13, color: '#666666', fontWeight: '500' },
-  floatField: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 12,
-    borderWidth: 1.5, borderColor: '#D0D8E8',
-    paddingHorizontal: 14, paddingVertical: 14,
-  },
-  floatInput: { fontSize: 15, color: '#1A1A1A', flex: 1 },
-  countryCode: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingRight: 10, borderRightWidth: 1, borderRightColor: '#DDD',
-  },
-  countryCodeText: { fontSize: 13, color: '#333', fontWeight: '600' },
+  // Continue button
+  continueBtn: { backgroundColor: PRIMARY, borderRadius: 10, paddingVertical: 15, alignItems: 'center', marginBottom: 12, marginTop: 8 },
+  continueBtnDisabled: { backgroundColor: '#FECACA' },
+  continueBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  backLink: { alignItems: 'center', paddingVertical: 8, marginBottom: 16 },
+  backLinkText: { color: '#666', fontSize: 14 },
 
-  // Summary card
-  summaryCard: {
-    backgroundColor: '#F0F7FF', borderRadius: 14, padding: 16, gap: 12,
-    borderWidth: 1, borderColor: '#D4E8FF',
-  },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  summaryCheck: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center',
-  },
-  summaryCheckText: { fontSize: 11, color: '#FFF', fontWeight: '800' },
-  summaryText: { fontSize: 13, color: '#1A1A1A', flex: 1 },
-
-  // Footer
-  footer: { padding: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F0F0F0' },
-  continueBtn: {
-    backgroundColor: PRIMARY, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center',
-  },
-  continueBtnDisabled: { backgroundColor: '#CCCCCC' },
-  continueBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.4 },
+  trustFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', paddingTop: 8 },
+  trustText: { fontSize: 10, color: '#999' },
 });

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { Search, Users, FileText, Activity, DollarSign, Server, Bell, ChevronDown, LayoutDashboard } from 'lucide-react'
 
@@ -43,11 +44,10 @@ function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-[12.5px] font-medium transition-all duration-150 group ${
-                isActive
+              className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-[12.5px] font-medium transition-all duration-150 group ${isActive
                   ? 'bg-gw-blue text-white shadow-sm'
                   : 'text-gw-text hover:bg-gw-sidebar-active hover:text-gw-blue'
-              }`}
+                }`}
             >
               <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-gw-text-muted group-hover:text-gw-blue'}`} />
               <div className="flex flex-col">
@@ -71,11 +71,10 @@ function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-[12.5px] font-medium transition-all duration-150 group ${
-                isActive
+              className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-[12.5px] font-medium transition-all duration-150 group ${isActive
                   ? 'bg-gw-blue text-white shadow-sm'
                   : 'text-gw-text hover:bg-gw-sidebar-active hover:text-gw-blue'
-              }`}
+                }`}
             >
               <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-gw-text-muted group-hover:text-gw-blue'}`} />
               <span>{item.label}</span>
@@ -98,9 +97,13 @@ function Sidebar() {
   )
 }
 
-function Header() {
+function Header({ user, onLogout }) {
+  const [showMenu, setShowMenu] = useState(false)
+  const u = user || { name: 'Admin', role: 'Admin', initials: 'AD', color: '#00529B' }
+  const initials = u.initials || u.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+
   return (
-    <header className="h-[52px] bg-gw-header flex items-center justify-between px-5 border-b border-[#001F3F] shrink-0">
+    <header className="h-[52px] bg-gw-header flex items-center justify-between px-5 border-b border-[#001F3F] shrink-0 relative">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 text-[12px]">
           <span className="text-blue-300 font-medium">Environment:</span>
@@ -139,28 +142,51 @@ function Header() {
 
         <div className="h-4 w-px bg-blue-800"></div>
 
-        {/* User */}
-        <div className="flex items-center gap-2 cursor-pointer group">
-          <div className="w-7 h-7 rounded-full bg-gw-blue text-white flex items-center justify-center text-[11px] font-semibold border-2 border-blue-400/40">
-            CM
-          </div>
-          <div className="flex flex-col">
-            <span className="text-white text-[12px] font-medium leading-tight group-hover:text-blue-200 transition-colors">Claims Manager</span>
-            <span className="text-blue-400/70 text-[10px] leading-tight">Admin Role</span>
-          </div>
-          <ChevronDown className="w-3 h-3 text-blue-400/70" />
+        {/* User dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(m => !m)}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div
+              className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[11px] font-semibold border-2 border-blue-400/40"
+              style={{ backgroundColor: u.color || '#00529B' }}
+            >
+              {initials}
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-white text-[12px] font-medium leading-tight group-hover:text-blue-200 transition-colors">{u.name}</span>
+              <span className="text-blue-400/70 text-[10px] leading-tight">{u.role}</span>
+            </div>
+            <ChevronDown className="w-3 h-3 text-blue-400/70" />
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 top-10 w-40 bg-white rounded shadow-xl border border-gray-100 z-50 py-1">
+              <div className="px-3 py-2 border-b border-gray-100">
+                <div className="text-[11px] font-semibold text-gray-700">{u.name}</div>
+                <div className="text-[10px] text-gray-400">{u.email}</div>
+              </div>
+              <button
+                onClick={() => { setShowMenu(false); onLogout && onLogout() }}
+                className="w-full text-left px-3 py-2 text-[11.5px] text-red-600 hover:bg-red-50 font-medium transition-colors"
+              >
+                Sign Out (Okta)
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
   )
 }
 
-export default function Layout() {
+export default function Layout({ user, onLogout }) {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header user={user} onLogout={onLogout} />
         <main className="flex-1 overflow-y-auto p-5 bg-gw-bg">
           <Outlet />
         </main>

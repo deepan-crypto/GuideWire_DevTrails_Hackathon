@@ -17,11 +17,10 @@ function LivePulse() {
 function TriggerZoneCard({ zone }) {
   const isTriggered = zone.triggered
   return (
-    <div className={`rounded border-2 p-3 transition-all ${
-      isTriggered
-        ? 'border-red-400 bg-red-50 shadow-sm shadow-red-100'
-        : 'border-gw-border bg-white'
-    }`}>
+    <div className={`rounded border-2 p-3 transition-all ${isTriggered
+      ? 'border-red-400 bg-red-50 shadow-sm shadow-red-100'
+      : 'border-gw-border bg-white'
+      }`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <MapPin className={`w-3.5 h-3.5 ${isTriggered ? 'text-red-600' : 'text-gw-text-muted'}`} />
@@ -33,9 +32,8 @@ function TriggerZoneCard({ zone }) {
           )}
         </div>
         {isTriggered && zone.triggerType && (
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
-            zone.triggerType === 'HEAT' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-          }`}>
+          <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${zone.triggerType === 'HEAT' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+            }`}>
             {zone.triggerType === 'HEAT' ? <Thermometer className="w-3 h-3" /> : <CloudRain className="w-3 h-3" />}
             {zone.triggerType}
           </span>
@@ -81,6 +79,8 @@ export default function ClaimCenter() {
   const [zones, setZones] = useState(mockTriggerZones)
   const [liveLog, setLiveLog] = useState(mockApprovalLog.slice(0, 5))
   const [timer, setTimer] = useState(0)
+  const [syncing, setSyncing] = useState(false)
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) })
@@ -128,9 +128,31 @@ export default function ClaimCenter() {
             <LivePulse />
             {triggeredCount} Active Triggers
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-medium hover:bg-gw-blue-dark transition-colors shadow-sm">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Force Sync
+          <button
+            onClick={() => {
+              setSyncing(true)
+              Promise.all([
+                fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) }),
+                fetchApprovalLog().then(data => {
+                  if (data && data.length > 0) {
+                    setLiveLog(data.map(c => ({
+                      id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
+                      zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
+                      status: c.status, paidAt: c.approvedAt || 'Pending'
+                    })))
+                  }
+                })
+              ]).finally(() => {
+                setSyncing(false)
+                setToast && setToast('Force sync complete — zones refreshed')
+                setTimeout(() => setToast && setToast(null), 3000)
+              })
+            }}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gw-blue text-white rounded text-[11.5px] font-medium hover:bg-gw-blue-dark transition-colors shadow-sm disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Force Sync'}
           </button>
         </div>
       </div>
