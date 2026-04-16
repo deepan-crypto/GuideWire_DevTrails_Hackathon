@@ -154,4 +154,24 @@ router.post('/trigger-claim', async (req, res) => {
   }
 });
 
+// GET /solvency  — Item 4: BCR + liquidity reserve + 14-day stress test
+router.get('/solvency', async (req, res) => {
+  try {
+    const metrics = await adminService.getSolvencyMetrics();
+    res.json(metrics);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /operational-cost  — Item 9: straight-through processing rate, overhead %
+router.get('/operational-cost', async (req, res) => {
+  try {
+    const metrics = await adminService.getOperationalCostMetrics();
+    res.json(metrics);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

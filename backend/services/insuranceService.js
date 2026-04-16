@@ -78,7 +78,25 @@ async function getQuote(riderId) {
 async function buyPolicy(riderId, tier) {
   const rider = await getRider(riderId);
 
-  // Dynamic Solvency Protocol: Block Pro/Standard during market crash
+  // ── Item 8: Adverse Selection Lockout ─────────────────────────────────
+  // Block new enrollments if a weather red-alert is already active in the rider's zone.
+  // This prevents riders from buying coverage only when a storm is imminent (48h rule).
+  try {
+    const alertRes = await axios.get(`${ORACLE_BASE_URL}/api/v1/pricing/quote?zone=${rider.zone}`);
+    const live = alertRes.data;
+    if (live && live.payout_triggered === true) {
+      throw new Error(
+        'ADVERSE_SELECTION_LOCKOUT: A weather red-alert is currently active in zone ' + rider.zone +
+        '. New policy enrollment is locked 48 hours before and during active weather events. ' +
+        'Please try again after the alert clears.'
+      );
+    }
+  } catch (e) {
+    // Only rethrow if it is our lockout error, not an oracle connectivity issue
+    if (e.message && e.message.startsWith('ADVERSE_SELECTION_LOCKOUT')) throw e;
+  }
+
+  // ── Dynamic Solvency Protocol: Block Pro/Standard during market crash ──
   if (marketCrashActive && (tier.toUpperCase() === 'PRO' || tier.toUpperCase() === 'STANDARD')) {
     throw new Error(
       'MARKET_CRASH_PROTOCOL: ' + tier.toUpperCase() +

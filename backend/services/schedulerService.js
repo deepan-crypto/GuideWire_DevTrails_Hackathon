@@ -171,18 +171,75 @@ async function runMarketCrashMonitor() {
   console.log('[Scheduler] No market crash detected.');
 }
 
+// ── Item 6: UPI Auto-Debit — Weekly Premium Collection ────────────────────
+// Runs every Monday at 09:00 IST (03:30 UTC)
+// Simulates UPI auto-pay mandate: micro-deducts weekly premiums from wallet.
+// No manual card entry required — completely frictionless.
+
+async function runWeeklyPremiumAutoDebit() {
+  console.log('[Scheduler] Running weekly UPI auto-debit for premium collection...');
+  const { BillingTransaction } = require('../models');
+
+  const WEEKLY_PREMIUMS = { BASIC: 95.0, STANDARD: 143.0, PRO: 218.0 };
+  const activeRiders = await Rider.find({ is_policy_active: true });
+
+  let debited = 0, failed = 0;
+  const today = new Date().toISOString().split('T')[0];
+
+  for (const rider of activeRiders) {
+    const weeklyPremium = WEEKLY_PREMIUMS[rider.policy_tier] || 95.0;
+
+    // Low balance check — warn but still deduct (like a real UPI mandate)
+    if (rider.wallet_balance < weeklyPremium) {
+      console.warn(`[AutoDebit] Low balance for rider ${rider._id} (${rider.name}): ₹${rider.wallet_balance} < ₹${weeklyPremium}`);
+      // Suspend policy if insufficient funds
+      rider.is_policy_active = false;
+      await rider.save();
+      failed++;
+      continue;
+    }
+
+    // Deduct weekly premium via UPI auto-mandate simulation
+    rider.wallet_balance -= weeklyPremium;
+    await rider.save();
+
+    // Log billing transaction
+    await BillingTransaction.create({
+      txn_id: 'TXN-UPI-AUTO-' + Date.now() + '-' + rider._id,
+      type: 'PREMIUM',
+      rider_name: rider.name,
+      amount: weeklyPremium,
+      date: today,
+      description: `Weekly UPI auto-debit — ${rider.policy_tier} tier — ${rider.city}`,
+      policy_ref: `POL-GW-${new Date().getFullYear()}-${String(rider._id).slice(-6)}`,
+    });
+
+    debited++;
+  }
+
+  console.log(`[AutoDebit] Weekly UPI auto-debit complete. Debited: ${debited}, Suspended (low balance): ${failed}`);
+}
+
 // ── Start scheduled tasks ──────────────────────────────────────────────────
 
 function startSchedulers() {
+  // Actuarial engine: every hour
   cron.schedule('0 * * * *', () => {
     runActuarialEngine().catch(e => console.error('[Scheduler] Actuarial engine error:', e.message));
   });
 
+  // Market crash monitor: every 30 min
   cron.schedule('30 * * * *', () => {
     runMarketCrashMonitor().catch(e => console.error('[Scheduler] Market crash monitor error:', e.message));
   });
 
-  console.log('[Scheduler] Cron jobs registered: actuarial engine (hourly), market crash monitor (every 30 min)');
+  // Item 6: UPI Auto-Debit — every Monday 09:00 IST (03:30 UTC)
+  // Frictionless micro-premium deduction via UPI mandate — no manual card entry
+  cron.schedule('30 3 * * 1', () => {
+    runWeeklyPremiumAutoDebit().catch(e => console.error('[Scheduler] UPI auto-debit error:', e.message));
+  });
+
+  console.log('[Scheduler] Cron jobs registered: actuarial engine (hourly), market crash monitor (30 min), UPI auto-debit (weekly Monday 09:00 IST)');
 }
 
-module.exports = { startSchedulers, runActuarialEngine, runMarketCrashMonitor };
+module.exports = { startSchedulers, runActuarialEngine, runMarketCrashMonitor, runWeeklyPremiumAutoDebit };
