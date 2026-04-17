@@ -177,6 +177,3 @@ export default function WeatherTriggerModal({ isOpen, onClose, onTrigger, isLoad
     </div>
   )
 }
-
-
-
