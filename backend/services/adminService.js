@@ -32,12 +32,22 @@ async function getPolicyDetail(policyNumber) {
   const policy = await getPolicyByNumber(policyNumber);
   const claims = await Claim.find({ policy_ref: policyNumber });
   const transactions = await BillingTransaction.find({ policy_ref: policyNumber });
+  const formattedPolicy = formatPolicy(policy);
+
   return {
-    policy: formatPolicy(policy),
+    ...formattedPolicy,
     claims: claims.map(formatClaim),
-    transactions: transactions.map(formatBillingTransaction),
+    billing: {
+      transactions: transactions.map(formatBillingTransaction),
+      paymentStatus: policy.delinquency_status === 'YES' ? 'Delinquent' : 'Active',
+      totalDue: '₹' + (transactions.reduce((acc, t) => acc + (t.type === 'PREMIUM' ? t.amount : 0), 0) || 0),
+      currentPayment: '₹0.00',
+      pastDue: '₹0.00',
+    },
+    activities: { upcoming: [], past: [] }
   };
 }
+
 
 // ── Manual Claim Pay ──────────────────────────────────────────────────────
 

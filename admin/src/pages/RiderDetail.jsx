@@ -90,11 +90,11 @@ export default function RiderDetail() {
 
   // Premium chart data
   const chartData = [
-    { name: rider.plan, value: 65 },
+    { name: rider?.plan || 'Standard', value: 65 },
     { name: 'Base Coverage', value: 20 },
     { name: 'Risk Surcharge', value: 15 },
   ]
-  const PIE_COLORS = [PLAN_COLORS[rider.plan] || '#00529B', '#7EB8DA', '#B8D4E8']
+  const PIE_COLORS = [PLAN_COLORS[rider?.plan] || '#00529B', '#7EB8DA', '#B8D4E8']
 
   const renewalMonths = Math.max(1, Math.floor((new Date('2027-01-15') - new Date(rider.startDate)) / (1000 * 60 * 60 * 24 * 30)))
   const renewalLabel = renewalMonths > 6 ? `${Math.floor(renewalMonths / 12)} Year` : `${renewalMonths} Months`
@@ -143,11 +143,11 @@ export default function RiderDetail() {
         <div className="col-span-2">
           <InfoField label="Billing Address" value={rider.address} />
         </div>
-        <InfoField label="Birthdate" value={new Date(rider.birthdate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })} />
-        <InfoField label="Phone" value={rider.phone} highlight="text-gw-blue" />
-        <InfoField label="Email" value={rider.email} highlight="text-gw-blue" />
-        <InfoField label="Customer Since" value={new Date(rider.customerSince).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })} />
-        <InfoField label="Account Tier" value={rider.accountTier} />
+        <InfoField label="Birthdate" value={rider?.birthdate ? new Date(rider.birthdate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '—'} />
+        <InfoField label="Phone" value={rider?.phone || '—'} highlight="text-gw-blue" />
+        <InfoField label="Email" value={rider?.email || '—'} highlight="text-gw-blue" />
+        <InfoField label="Customer Since" value={rider?.customerSince ? new Date(rider.customerSince).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '—'} />
+        <InfoField label="Account Tier" value={rider?.accountTier || 'Member'} />
         <div className="flex gap-4">
           <InfoField label="Account Status" value={rider.status} highlight="text-green-600" />
           <InfoField label="Delinquency" value={rider.delinquencyStatus === 'YES' ? 'Delinquent' : 'None'} highlight={rider.delinquencyStatus === 'YES' ? 'text-red-600' : 'text-gw-text'} />
@@ -161,8 +161,8 @@ export default function RiderDetail() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-[12px] font-medium border-b-2 transition-colors ${activeTab === tab
-                ? 'border-gw-blue text-gw-blue'
-                : 'border-transparent text-gw-text-muted hover:text-gw-text'
+              ? 'border-gw-blue text-gw-blue'
+              : 'border-transparent text-gw-text-muted hover:text-gw-text'
               }`}
           >
             {tab}
@@ -358,7 +358,7 @@ export default function RiderDetail() {
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => `${value}%`} />
-                  <text x="50%" y="48%" textAnchor="middle" fill="#1A1A2E" fontSize="18" fontWeight="bold">{rider.premium.replace('/day', '')}</text>
+                  <text x="50%" y="48%" textAnchor="middle" fill="#1A1A2E" fontSize="18" fontWeight="bold">{(rider?.premium || '₹0').replace('/day', '')}</text>
                   <text x="50%" y="58%" textAnchor="middle" fill="#5A6A7A" fontSize="10">/day</text>
                 </PieChart>
               </ResponsiveContainer>
