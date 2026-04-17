@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom'
 const OKTA_USERS = [
     {
         id: 1,
-        name: 'Saravana Karthiek',
-        email: 'saravana@riskwire.in',
+        name: 'Super Admin',
+        email: 'superAdmin@riskwire.in',
         role: 'Super Admin',
         initials: 'SK',
         color: '#7C3AED',
@@ -13,8 +13,8 @@ const OKTA_USERS = [
     },
     {
         id: 2,
-        name: 'Deepan',
-        email: 'deepan@riskwire.in',
+        name: 'Claims Manager',
+        email: 'claimsmanager@riskwire.in',
         role: 'Claims Manager',
         initials: 'DE',
         color: '#00529B',
@@ -22,8 +22,8 @@ const OKTA_USERS = [
     },
     {
         id: 3,
-        name: 'Priya Menon',
-        email: 'priya.menon@riskwire.in',
+        name: 'Policy Analyst',
+        email: 'policyanalyst@riskwire.in',
         role: 'Policy Analyst',
         initials: 'PM',
         color: '#059669',
@@ -31,12 +31,12 @@ const OKTA_USERS = [
     },
     {
         id: 4,
-        name: 'DevTrails Bot',
-        email: 'bot@riskwire.in',
-        role: 'System Auditor',
-        initials: 'DB',
+        name: 'Billing Specialist',
+        email: 'billing@riskwire.in',
+        role: 'Billing Specialist',
+        initials: 'BS',
         color: '#D97706',
-        permissions: ['Read', 'Automated'],
+        permissions: ['Read', 'Write'],
     },
 ]
 
