@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { loadOnboardingState } from '@/utils/onboardingState';
+import { loadOnboardingState, isOnboardingComplete, hasSeenIntro } from '@/utils/onboardingState';
 import { router } from 'expo-router';
 
 export const unstable_settings = {
@@ -14,8 +14,19 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    loadOnboardingState().then((done) => {
-      if (done) {
+    loadOnboardingState().then(() => {
+      const introSeen = hasSeenIntro();
+      const onboardingDone = isOnboardingComplete();
+      
+      // Routing logic:
+      // 1. If intro NOT seen → show (tabs) pages
+      // 2. If intro seen but onboarding NOT done → show onboarding
+      // 3. If onboarding done → go directly to worker-tabs
+      if (!introSeen) {
+        router.replace('/(tabs)' as any);
+      } else if (!onboardingDone) {
+        router.replace('/onboarding' as any);
+      } else {
         router.replace('/(worker-tabs)' as any);
       }
       setReady(true);

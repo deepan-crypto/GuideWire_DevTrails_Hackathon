@@ -5,6 +5,7 @@ import {
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { getQuote } from '@/utils/api';
+import { setIntroSeen } from '@/utils/onboardingState';
 
 const PLANS = [
   { id: 'basic', name: 'Heat Shield Basic', icon: Shield, color: '#059669', bg: '#ECFDF5', accent: '#D1FAE5', tier: 'basic' },
@@ -29,6 +30,7 @@ const TRUST = [
 export default function HomeScreen() {
   const [prices, setPrices] = useState<Record<string, number>>(FALLBACK_PRICES);
   const [loading, setLoading] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
 
   useEffect(() => {
     // Fetch live prices from the pricing engine
@@ -43,6 +45,17 @@ export default function HomeScreen() {
       .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleContinueToVerification = async () => {
+    try {
+      setTransitioning(true);
+      await setIntroSeen();
+      router.replace('/onboarding' as any);
+    } catch (err) {
+      console.error('Failed to continue:', err);
+      setTransitioning(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
@@ -119,8 +132,8 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={plan.id}
                 style={[styles.planCard, { borderLeftColor: plan.color }]}
-                onPress={() => router.push({ pathname: '/activate', params: { plan: plan.name } })}
                 activeOpacity={0.85}
+                disabled={true}
               >
                 <View style={styles.planHeader}>
                   <View style={[styles.planIconBox, { backgroundColor: plan.bg }]}>
@@ -170,6 +183,25 @@ export default function HomeScreen() {
             </View>
           </View>
         ))}
+      </View>
+
+      {/* ── Continue to Verification CTA ── */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.ctaButton}
+          onPress={handleContinueToVerification}
+          disabled={transitioning}
+          activeOpacity={0.8}
+        >
+          {transitioning ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Text style={styles.ctaButtonText}>Continue to Verification</Text>
+              <ArrowRight size={18} color="#FFFFFF" />
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: 40 }} />
@@ -254,4 +286,11 @@ const styles = StyleSheet.create({
   whyEmoji: { fontSize: 24 },
   whyTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginBottom: 3 },
   whyDesc: { fontSize: 12, color: '#666', lineHeight: 18 },
+
+  ctaButton: {
+    backgroundColor: '#0066CC', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 8,
+  },
+  ctaButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
