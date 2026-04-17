@@ -107,29 +107,57 @@ export async function markNotificationAsRead(riderId: string | number, notificat
   return request<Notification>(`/rider/${riderId}/notifications/${notificationId}/read`, { method: 'POST' });
 }
 
+
 // ── Insurance endpoints ────────────────────────────────────────────
-
-/** Get pricing quote for all tiers for a rider's zone. */
-export async function getQuote(riderId: string | number): Promise<QuoteResponse> {
-  return request<QuoteResponse>(`/insurance/quote?riderId=${riderId}`);
-}
-
-/** Get dynamic pricing from Oracle for a specific zone (used on home/info pages). */
-export async function getDynamicPricing(zone: string = 'MZ-DEL-04'): Promise<{
-  zone: string;
-  zone_name: string;
-  risk_multiplier: number;
-  plans: QuoteResponse;
-}> {
-  const ORACLE_URL = process.env.EXPO_PUBLIC_ORACLE_URL || 'https://guidewire-devtrails-hackathon.onrender.com';
-  const res = await fetch(`${ORACLE_URL}/api/v1/pricing/forecast-quote?zone=${zone}`);
-  if (!res.ok) {
-    throw new Error(`Oracle error ${res.status}`);
-  }
-  return res.json();
-}
 
 /** Purchase a policy tier (basic | standard | pro). Returns updated Rider. */
 export async function buyPolicy(riderId: string | number, tier: string): Promise<Rider> {
   return request<Rider>(`/insurance/buy?riderId=${riderId}&tier=${tier}`, { method: 'POST' });
 }
+
+// ── Pricing Engine (Oracle) ────────────────────────────────────────────────
+const ORACLE_URL = process.env.EXPO_PUBLIC_ORACLE_URL || 'https://guidewire-devtrails-hackathon.onrender.com';
+
+async function oracleRequest<T>(path: string): Promise<T> {
+  const res = await fetch(`${ORACLE_URL}${path}`, { headers: { 'Content-Type': 'application/json' } });
+  if (!res.ok) throw new Error(`Oracle error ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+export interface WeatherQuote {
+  zone: string;
+  zone_name: string;
+  live_temp: number;
+  live_rain: number;
+  live_humidity: number;
+  live_wind_kmh: number;
+  live_aqi: number;
+  payout_triggered: boolean;
+  trigger_type: string | null;
+  checks: Record<string, boolean>;
+}
+
+export interface ForecastQuote {
+  zone: string;
+  zone_name: string;
+  risk_multiplier: number;
+  live_aqi: number;
+  forecast_temp: number;
+  forecast_rain: number;
+  plans: {
+    basic: { premium: number; daily_payout: number };
+    standard: { premium: number; daily_payout: number };
+    pro: { premium: number; daily_payout: number };
+  };
+}
+
+/** Fetch live weather + trigger status for a zone from the pricing engine. */
+export async function getLiveWeather(zone: string): Promise<WeatherQuote> {
+  return oracleRequest<WeatherQuote>(`/api/v1/pricing/quote?zone=${encodeURIComponent(zone)}`);
+}
+
+/** Fetch ML-computed dynamic pricing for a zone from the pricing engine. */
+export async function getDynamicPricing(zone: string): Promise<ForecastQuote> {
+  return oracleRequest<ForecastQuote>(`/api/v1/pricing/forecast-quote?zone=${encodeURIComponent(zone)}`);
+}
+

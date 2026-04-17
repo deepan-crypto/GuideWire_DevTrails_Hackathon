@@ -1,29 +1,87 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { CloudRain, Thermometer, Wind, Bell, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { CloudRain, Thermometer, Wind, RefreshCw } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
+import { getCachedRiderId } from '@/utils/onboardingState';
+import { getRider, getLiveWeather, getNotifications, getPayouts } from '@/utils/api';
 
-const PB_NAVY   = '#0F4C81';
-const PB_GREEN  = '#00C37B';
+const PB_NAVY = '#0F4C81';
+const PB_GREEN = '#00C37B';
 const PB_ORANGE = '#FF5722';
 
-const ALERTS = [
-  { id: '1', type: 'warning', icon: CloudRain,     color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', title: 'Heavy Rain Alert',        desc: 'Rainfall of 93.8mm detected in Coimbatore zone. Claim trigger active.', time: '2 hrs ago' },
-  { id: '2', type: 'success', icon: CheckCircle2,  color: PB_GREEN,  bg: '#F0FDF4', border: '#86EFAC', title: 'Payout Triggered',         desc: 'CLM-1773238801401 approved. ₹350 will be credited within 24 hours.',     time: 'Today' },
-  { id: '3', type: 'alert',   icon: AlertTriangle, color: PB_ORANGE, bg: '#FFF5F0', border: '#FDBA74', title: 'Extreme Heat Warning',      desc: 'Temperature above 38°C for 3 consecutive days. Monitor your plan.',       time: '1 day ago' },
-];
+// City → zone code mapping
+const CITY_ZONE: Record<string, string> = {
+  'Delhi': 'MZ-DEL-04', 'New Delhi': 'MZ-DEL-04',
+  'Mumbai': 'MZ-MUM-01', 'Bengaluru': 'MZ-BLR-02', 'Bangalore': 'MZ-BLR-02',
+  'Chennai': 'MZ-CHN-03', 'Hyderabad': 'MZ-HYD-05',
+  'Pune': 'MZ-PUN-06', 'Kolkata': 'MZ-KOL-07', 'Ahmedabad': 'MZ-AMD-08',
+};
 
-const WEATHER = [
-  { label: 'Rainfall',    val: '93.8 mm', color: '#2563EB', bg: '#EFF6FF', icon: CloudRain,     trend: '↑ High' },
-  { label: 'Temperature', val: '31.2°C',  color: '#E65100', bg: '#FFF3E0', icon: Thermometer,   trend: '↑ Hot' },
-  { label: 'Wind Speed',  val: '18 km/h', color: '#6B7280', bg: '#F3F4F6', icon: Wind,          trend: '→ Normal' },
-];
-
-const POLICY_UPDATES = [
-  { emoji: '📋', title: 'Coverage renewed automatically', desc: 'Your Standard Plan has been renewed for the next billing cycle.', time: '3 days ago' },
-  { emoji: '💡', title: 'New risk zone mapped',           desc: 'Coimbatore has been upgraded to High-Risk Zone. Your premium may adjust.', time: '1 week ago' },
-  { emoji: '🎉', title: 'Loyalty bonus unlocked',         desc: 'You\'ve been with RiskWire for 3 months. 5% premium discount applied!', time: '2 weeks ago' },
-];
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export default function UpdatesTab() {
+  const [loading, setLoading] = useState(true);
+  const [lastTime, setLastTime] = useState('');
+  const [weather, setWeather] = useState<{
+    live_rain: number; live_temp: number; live_wind_kmh: number;
+    live_aqi: number; payout_triggered: boolean; trigger_type: string | null;
+    zone_name: string; zone: string;
+  } | null>(null);
+  const [riderInfo, setRiderInfo] = useState<{ zone: string; city: string } | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    const riderId = getCachedRiderId();
+    if (!riderId) { setLoading(false); return; }
+    try {
+      const [rider, notifs, pouts] = await Promise.all([
+        getRider(riderId),
+        getNotifications(riderId, 20),
+        getPayouts(riderId),
+      ]);
+      setRiderInfo({ zone: rider.zone || '', city: rider.city || '' });
+      setNotifications(notifs || []);
+      setPayouts(pouts || []);
+
+      const zone = CITY_ZONE[rider.city] || rider.zone || 'MZ-DEL-04';
+      try {
+        const wx = await getLiveWeather(zone);
+        setWeather(wx);
+      } catch { /* Weather is optional */ }
+
+      setLastTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+    } catch { /* Keep stale data */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
+
+  const totalPaid = payouts.reduce((s: number, p: any) => s + (p.amount || 0), 0);
+
+  /* ---- helper to decide risk level ---- */
+  const triggerActive = weather?.payout_triggered;
+  const riskLevel = triggerActive ? '🔴 High Risk' : (weather ? '🟡 Medium Risk' : '🟢 Low Risk');
+  const riskScore = triggerActive ? 0.85 : 0.42;
+  const riskColor = triggerActive ? '#D32F2F' : '#D97706';
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={PB_NAVY} />
+        <Text style={{ color: '#666', marginTop: 12 }}>Loading updates...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -32,7 +90,7 @@ export default function UpdatesTab() {
           <Text style={styles.headerTitle}>Updates</Text>
           <Text style={styles.headerSubtitle}>Weather · Alerts · Policy Changes</Text>
         </View>
-        <TouchableOpacity style={styles.refreshBtn}>
+        <TouchableOpacity style={styles.refreshBtn} onPress={loadAll}>
           <RefreshCw size={18} color={PB_NAVY} />
         </TouchableOpacity>
       </View>
@@ -42,87 +100,123 @@ export default function UpdatesTab() {
         {/* Live Weather */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🌦 Live Weather — Coimbatore</Text>
-            <Text style={styles.sectionMeta}>Updated just now</Text>
+            <Text style={styles.sectionTitle}>🌦 Live Weather — {weather?.zone_name ?? riderInfo?.city ?? 'Your Zone'}</Text>
+            <Text style={styles.sectionMeta}>{lastTime ? `${lastTime}` : 'Loading...'}</Text>
           </View>
-          <View style={styles.weatherRow}>
-            {WEATHER.map(w => (
-              <View key={w.label} style={[styles.weatherCard, { backgroundColor: w.bg }]}>
-                <w.icon size={22} color={w.color} />
-                <Text style={[styles.weatherVal, { color: w.color }]}>{w.val}</Text>
-                <Text style={styles.weatherLabel}>{w.label}</Text>
-                <View style={[styles.trendPill, { borderColor: w.color }]}>
-                  <Text style={[styles.trendText, { color: w.color }]}>{w.trend}</Text>
+          {weather ? (
+            <View style={styles.weatherRow}>
+              {[
+                { label: 'Rainfall', val: `${weather.live_rain.toFixed(1)} mm`, color: '#2563EB', bg: '#EFF6FF', Icon: CloudRain, trend: weather.live_rain > 50 ? '↑ Heavy' : weather.live_rain > 15 ? '↑ Moderate' : '→ Light' },
+                { label: 'Temperature', val: `${weather.live_temp.toFixed(1)}°C`, color: '#E65100', bg: '#FFF3E0', Icon: Thermometer, trend: weather.live_temp > 38 ? '↑ Extreme' : weather.live_temp > 30 ? '↑ Hot' : '→ Normal' },
+                { label: 'Wind Speed', val: `${(weather.live_wind_kmh || 0).toFixed(0)} km/h`, color: '#6B7280', bg: '#F3F4F6', Icon: Wind, trend: '→ Normal' },
+              ].map(w => (
+                <View key={w.label} style={[styles.weatherCard, { backgroundColor: w.bg }]}>
+                  <w.Icon size={22} color={w.color} />
+                  <Text style={[styles.weatherVal, { color: w.color }]}>{w.val}</Text>
+                  <Text style={styles.weatherLabel}>{w.label}</Text>
+                  <View style={[styles.trendPill, { borderColor: w.color }]}>
+                    <Text style={[styles.trendText, { color: w.color }]}>{w.trend}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Claim Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Claim Alerts</Text>
-          {ALERTS.map(a => (
-            <View key={a.id} style={[styles.alertCard, { backgroundColor: a.bg, borderColor: a.border }]}>
-              <View style={[styles.alertIconBox, { backgroundColor: a.bg }]}>
-                <a.icon size={20} color={a.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.alertTitleRow}>
-                  <Text style={[styles.alertTitle, { color: a.color }]}>{a.title}</Text>
-                  <Text style={styles.alertTime}>{a.time}</Text>
-                </View>
-                <Text style={styles.alertDesc}>{a.desc}</Text>
-              </View>
+              ))}
             </View>
-          ))}
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>Weather data unavailable. Check your connection.</Text>
+            </View>
+          )}
         </View>
 
-        {/* Zone Status */}
+        {/* Claim Alerts — from real notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔔 Recent Alerts</Text>
+          {notifications.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No alerts yet. You'll see weather payouts here.</Text>
+            </View>
+          ) : notifications.slice(0, 5).map((n: any) => {
+            const isSuccess = n.type === 'CLAIM_APPROVED' || n.type === 'WEATHER_PAYOUT' || n.type === 'POLICY_ACTIVE';
+            const color = isSuccess ? PB_GREEN : PB_ORANGE;
+            const bg = isSuccess ? '#F0FDF4' : '#FFF5F0';
+            const border = isSuccess ? '#86EFAC' : '#FDBA74';
+            const icon = n.type === 'WEATHER_PAYOUT' ? '⛈️' : n.type === 'POLICY_ACTIVE' ? '✅' : n.type === 'CLAIM_APPROVED' ? '💰' : 'ℹ️';
+            return (
+              <View key={n._id} style={[styles.alertCard, { backgroundColor: bg, borderColor: border }]}>
+                <View style={[styles.alertIconBox, { backgroundColor: bg }]}>
+                  <Text style={{ fontSize: 20 }}>{icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.alertTitleRow}>
+                    <Text style={[styles.alertTitle, { color }]}>{n.title}</Text>
+                    <Text style={styles.alertTime}>{relativeTime(n.created_at)}</Text>
+                  </View>
+                  <Text style={styles.alertDesc}>{n.message}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Zone Status — live */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📍 Your Zone Status</Text>
           <View style={styles.zoneCard}>
             <View style={styles.zoneRow}>
               <Text style={styles.zoneLabel}>Zone</Text>
-              <Text style={styles.zoneVal}>Coimbatore · Urban</Text>
+              <Text style={styles.zoneVal}>{weather?.zone_name ?? riderInfo?.city ?? '—'}</Text>
             </View>
             <View style={styles.zoneRow}>
               <Text style={styles.zoneLabel}>Risk Level</Text>
-              <View style={styles.riskBadge}>
-                <Text style={styles.riskBadgeText}>🟡 Medium Risk</Text>
+              <View style={[styles.riskBadge, { backgroundColor: triggerActive ? '#FFEBEE' : '#FFFBEB' }]}>
+                <Text style={[styles.riskBadgeText, { color: riskColor }]}>{riskLevel}</Text>
               </View>
             </View>
             <View style={styles.zoneRow}>
               <Text style={styles.zoneLabel}>Trigger Status</Text>
-              <View style={styles.triggerBadge}>
-                <Text style={styles.triggerBadgeText}>⚡ Active Trigger</Text>
+              <View style={[styles.triggerBadge, { backgroundColor: triggerActive ? '#FFEBEE' : '#F0FDF4' }]}>
+                <Text style={[styles.triggerBadgeText, { color: triggerActive ? '#D32F2F' : PB_GREEN }]}>
+                  {triggerActive ? `⚡ ${weather?.trigger_type?.replace(/_/g, ' ')}` : '✓ No Active Trigger'}
+                </Text>
               </View>
             </View>
             <View style={styles.progressSection}>
               <View style={styles.progressLabelRow}>
                 <Text style={styles.progressLabel}>Risk Score</Text>
-                <Text style={styles.progressVal}>0.61 / 1.0</Text>
+                <Text style={styles.progressVal}>{riskScore.toFixed(2)} / 1.0</Text>
               </View>
               <View style={styles.progressBg}>
-                <View style={styles.progressFill} />
+                <View style={[styles.progressFill, { width: `${riskScore * 100}%`, backgroundColor: riskColor }]} />
               </View>
             </View>
           </View>
         </View>
 
-        {/* Policy Updates */}
+        {/* Policy / Payout History — live */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📄 Policy Updates</Text>
-          {POLICY_UPDATES.map(p => (
-            <View key={p.title} style={styles.policyCard}>
-              <Text style={styles.policyEmoji}>{p.emoji}</Text>
+          <Text style={styles.sectionTitle}>📄 Payout History</Text>
+          {payouts.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No payouts yet. When a weather trigger fires in your zone, you'll be paid here automatically.</Text>
+            </View>
+          ) : payouts.slice(0, 5).map((p: any) => (
+            <View key={String(p.id)} style={styles.policyCard}>
+              <Text style={styles.policyEmoji}>💰</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.policyTitle}>{p.title}</Text>
-                <Text style={styles.policyDesc}>{p.desc}</Text>
-                <Text style={styles.policyTime}>{p.time}</Text>
+                <Text style={styles.policyTitle}>₹{p.amount} Payout Credited</Text>
+                <Text style={styles.policyDesc}>Parametric trigger — Zone disruption detected automatically by RiskWire sensors.</Text>
+                <Text style={styles.policyTime}>{new Date(p.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
               </View>
             </View>
           ))}
+          {payouts.length > 0 && (
+            <View style={[styles.policyCard, { borderBottomWidth: 0 }]}>
+              <Text style={styles.policyEmoji}>📊</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.policyTitle}>Lifetime Payout: ₹{totalPaid}</Text>
+                <Text style={styles.policyDesc}>{payouts.length} successful parametric claim{payouts.length !== 1 ? 's' : ''} so far.</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={{ height: 20 }} />
@@ -152,6 +246,11 @@ const styles = StyleSheet.create({
   weatherLabel: { fontSize: 11, color: '#666', fontWeight: '500' },
   trendPill: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   trendText: { fontSize: 10, fontWeight: '700' },
+  emptyCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20,
+    borderWidth: 1, borderColor: '#E5E9F2', alignItems: 'center',
+  },
+  emptyText: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
   alertCard: {
     flexDirection: 'row', gap: 12, borderRadius: 14, padding: 14,
     borderWidth: 1, marginBottom: 10, alignItems: 'flex-start',
@@ -168,16 +267,16 @@ const styles = StyleSheet.create({
   zoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   zoneLabel: { fontSize: 13, color: '#8898AA', fontWeight: '600' },
   zoneVal: { fontSize: 13, color: '#1A1A24', fontWeight: '700' },
-  riskBadge: { backgroundColor: '#FFFBEB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  riskBadgeText: { fontSize: 12, fontWeight: '700', color: '#D97706' },
-  triggerBadge: { backgroundColor: '#FFF5F0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  triggerBadgeText: { fontSize: 12, fontWeight: '700', color: PB_ORANGE },
+  riskBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  riskBadgeText: { fontSize: 12, fontWeight: '700' },
+  triggerBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  triggerBadgeText: { fontSize: 12, fontWeight: '700' },
   progressSection: { gap: 8 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between' },
   progressLabel: { fontSize: 12, color: '#8898AA' },
   progressVal: { fontSize: 12, fontWeight: '700', color: '#1A1A24' },
   progressBg: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
-  progressFill: { width: '61%', height: '100%', backgroundColor: '#FFC107', borderRadius: 4 },
+  progressFill: { height: '100%', borderRadius: 4 },
   policyCard: {
     flexDirection: 'row', gap: 14, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: '#F0F0F0', alignItems: 'flex-start',
