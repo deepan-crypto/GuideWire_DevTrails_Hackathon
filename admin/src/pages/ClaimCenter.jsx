@@ -115,7 +115,8 @@ export default function ClaimCenter() {
   const handleWeatherTrigger = async (data) => {
     setIsTriggering(true)
     try {
-      const response = await fetch('http://localhost:8080/api/v1/admin/trigger-claim', {
+      const apiBase = import.meta.env.VITE_API_URL || 'https://riskwire-backend.onrender.com/api/v1/admin';
+      const response = await fetch(`${apiBase}/trigger-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

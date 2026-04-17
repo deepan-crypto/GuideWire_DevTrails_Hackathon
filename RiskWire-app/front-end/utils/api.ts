@@ -1,6 +1,6 @@
 // Central API layer for RiskWire backend
 // Backend base URL — set EXPO_PUBLIC_API_URL in .env for production
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://riskwire-backend.onrender.com/api/v1';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
