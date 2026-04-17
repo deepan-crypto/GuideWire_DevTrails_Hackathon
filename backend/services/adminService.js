@@ -188,13 +188,17 @@ async function getAutoApprovalLog() {
 const ZONE_REGISTRY = {
   'MZ-DEL-04': 'Connaught Place, Delhi',
   'MZ-DEL-09': 'Karol Bagh, Delhi',
-  'MZ-MUM-12': 'Andheri West, Mumbai',
-  'MZ-BLR-07': 'Koramangala, Bangalore',
-  'MZ-HYD-03': 'HITEC City, Hyderabad',
-  'MZ-CHN-05': 'T. Nagar, Chennai',
-  'MZ-PUN-02': 'Hinjewadi, Pune',
-  'MZ-HYD-08': 'Gachibowli, Hyderabad',
+  'MZ-MUM-01': 'Andheri West, Mumbai',
+  'MZ-MUM-12': 'Bandra, Mumbai',
+  'MZ-BLR-02': 'Koramangala, Bangalore',
+  'MZ-BLR-07': 'Whitefield, Bangalore',
+  'MZ-HYD-05': 'HITEC City, Hyderabad',
+  'MZ-HYD-03': 'Gachibowli, Hyderabad',
+  'MZ-CHN-03': 'T. Nagar, Chennai',
   'MZ-CHN-11': 'Adyar, Chennai',
+  'MZ-PUN-06': 'Hinjewadi, Pune',
+  'MZ-KOL-07': 'Salt Lake, Kolkata',
+  'MZ-AMD-08': 'Satellite, Ahmedabad',
 };
 
 async function getTriggerZones() {

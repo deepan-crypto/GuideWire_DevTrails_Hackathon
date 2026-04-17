@@ -37,7 +37,7 @@ router.get('/policies/:policyNumber', async (req, res) => {
 // POST /claims/pay/:riderId
 router.post('/claims/pay/:riderId', async (req, res) => {
   try {
-    const result = await adminService.payManualClaim(parseInt(req.params.riderId));
+    const result = await adminService.payManualClaim(req.params.riderId);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -127,7 +127,7 @@ router.get('/fraud-logs/blocked', async (req, res) => {
 // GET /risk-heatmap
 router.get('/risk-heatmap', async (req, res) => {
   try {
-    const heatmap = adminService.getRiskHeatmap();
+    const heatmap = await adminService.getRiskHeatmap();
     res.json(heatmap);
   } catch (err) {
     res.status(500).json({ error: err.message });

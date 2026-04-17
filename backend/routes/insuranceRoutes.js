@@ -5,7 +5,7 @@ const insuranceService = require('../services/insuranceService');
 // GET /api/v1/insurance/quote
 router.get('/quote', async (req, res) => {
   try {
-    const riderId = parseInt(req.query.riderId);
+    const riderId = req.query.riderId;
     const quote = await insuranceService.getQuote(riderId);
     res.json(quote);
   } catch (err) {
@@ -16,7 +16,7 @@ router.get('/quote', async (req, res) => {
 // POST /api/v1/insurance/buy
 router.post('/buy', async (req, res) => {
   try {
-    const riderId = parseInt(req.query.riderId);
+    const riderId = req.query.riderId;
     const tier = req.query.tier;
     const rider = await insuranceService.buyPolicy(riderId, tier);
     res.json(rider);
@@ -28,7 +28,7 @@ router.post('/buy', async (req, res) => {
 // GET /api/v1/insurance/claim-tracker
 router.get('/claim-tracker', async (req, res) => {
   try {
-    const riderId = parseInt(req.query.riderId);
+    const riderId = req.query.riderId;
     const tracker = await insuranceService.getClaimTracker(riderId);
     res.json(tracker);
   } catch (err) {
@@ -49,7 +49,7 @@ router.get('/market-status', async (req, res) => {
 // POST /api/v1/insurance/referral/generate
 router.post('/referral/generate', async (req, res) => {
   try {
-    const riderId = parseInt(req.query.riderId);
+    const riderId = req.query.riderId;
     const result = await insuranceService.generateReferralCode(riderId);
     res.json(result);
   } catch (err) {
@@ -60,7 +60,7 @@ router.post('/referral/generate', async (req, res) => {
 // POST /api/v1/insurance/referral/redeem
 router.post('/referral/redeem', async (req, res) => {
   try {
-    const riderId = parseInt(req.query.riderId);
+    const riderId = req.query.riderId;
     const code = req.query.code;
     const result = await insuranceService.redeemReferral(riderId, code);
     res.json(result);

@@ -95,7 +95,8 @@ export default function ActivateScreen() {
         // Map city to a valid zone code recognized by the backend/pricing engine
         const CITY_ZONE_MAP: Record<string, string> = {
           'Delhi': 'MZ-DEL-04', 'New Delhi': 'MZ-DEL-04',
-          'Mumbai': 'MZ-MUM-01', 'Bengaluru': 'MZ-BLR-02', 'Bangalore': 'MZ-BLR-02',
+          'Mumbai': 'MZ-MUM-01',
+          'Bengaluru': 'MZ-BLR-02', 'Bangalore': 'MZ-BLR-02',
           'Chennai': 'MZ-CHN-03', 'Hyderabad': 'MZ-HYD-05',
           'Pune': 'MZ-PUN-06', 'Kolkata': 'MZ-KOL-07', 'Ahmedabad': 'MZ-AMD-08',
         };

@@ -519,6 +519,53 @@ def get_zone_registry():
     }
 
 
+@app.get("/api/v1/oracle/market-health/{city}")
+def get_market_health(city: str):
+    """
+    Solvency protocol: detects massive order volume drops (e.g. platform blackout).
+    If volume drops > 40%, it triggers a crash state.
+    """
+    # Simulate a healthy market by default
+    drop_pct = 5.2 
+    crash = drop_pct > 40.0
+    
+    return {
+        "city": city,
+        "crash_detected": crash,
+        "overall_order_volume_drop_pct": drop_pct,
+        "solvency_protocol_triggered": crash,
+        "action": "NONE" if not crash else "LOCK_PRO_STANDARD_TIERS",
+        "recommendation": "Maintain standard operations" if not crash else "Implement solvency lock immediately",
+        "platforms": {
+            "swiggy": {"status": "normal", "volume_index": 0.98},
+            "zomato": {"status": "normal", "volume_index": 0.95},
+            "uber":   {"status": "normal", "volume_index": 1.02},
+        },
+        "timestamp": "2026-04-17T12:00:00Z"
+    }
+
+
+@app.get("/api/v1/oracle/platform-status/{zone}")
+def get_platform_status(zone: str):
+    """
+    Dual Validation: checks if gig platforms are actually seeing order disruptions.
+    Used by the actuarial engine to confirm weather-triggered payouts.
+    """
+    # Simulate platform disruption based on zone weather
+    # (In production, this would hit Swiggy/Zomato partner APIs)
+    ward = ZONE_REGISTRY.get(zone)
+    if not ward:
+        return {"disruption_confirmed": False, "status": "unknown_zone"}
+        
+    return {
+        "zone": zone,
+        "disruption_confirmed": True, # For demo purposes, we always confirm if weather is bad
+        "platforms": ["Swiggy", "Zomato", "Uber"],
+        "latency_ms": 42,
+        "timestamp": "2026-04-17T12:00:00Z"
+    }
+
+
 @app.get("/")
 def health():
     return {

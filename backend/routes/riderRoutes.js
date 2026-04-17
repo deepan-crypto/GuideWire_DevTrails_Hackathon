@@ -17,7 +17,7 @@ router.post('/register', async (req, res) => {
 // GET /api/v1/rider/:id
 router.get('/:id', async (req, res) => {
   try {
-    const rider = await insuranceService.getRider(parseInt(req.params.id));
+    const riderId = req.params.id;
     res.json(insuranceService.formatRider(rider));
   } catch (err) {
     res.status(404).json({ error: err.message });
@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/v1/rider/:id
 router.put('/:id', async (req, res) => {
   try {
-    const rider = await insuranceService.updateRider(parseInt(req.params.id), req.body);
+    const rider = await insuranceService.updateRider(req.params.id, req.body);
     res.json(rider);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -37,7 +37,7 @@ router.put('/:id', async (req, res) => {
 // GET /api/v1/rider/:id/payouts
 router.get('/:id/payouts', async (req, res) => {
   try {
-    const payouts = await insuranceService.getPayouts(parseInt(req.params.id));
+    const payouts = await insuranceService.getPayouts(req.params.id);
     res.json(payouts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -47,7 +47,7 @@ router.get('/:id/payouts', async (req, res) => {
 // GET /api/v1/rider/:id/notifications
 router.get('/:id/notifications', async (req, res) => {
   try {
-    const riderId = parseInt(req.params.id);
+    const riderId = req.params.id;
     const limit = parseInt(req.query.limit) || 20;
     const notifications = await Notification.find({ rider_id: riderId })
       .sort({ created_at: -1 })
