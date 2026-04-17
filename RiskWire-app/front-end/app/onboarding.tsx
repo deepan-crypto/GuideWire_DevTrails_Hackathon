@@ -354,13 +354,17 @@ export default function OnboardingScreen() {
 
         {/* Continue / Finish Button */}
         <TouchableOpacity
-          style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
+          style={[styles.continueBtn, (!canContinue || loading) && styles.continueBtnDisabled]}
           onPress={handleContinue}
-          disabled={!canContinue}
+          disabled={!canContinue || loading}
         >
-          <Text style={styles.continueBtnText}>
-            {step === TOTAL_STEPS ? 'Browse Insurance Plans →' : 'Continue →'}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <Text style={styles.continueBtnText}>
+              {step === TOTAL_STEPS ? 'Activate → ' : 'Continue →'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Back */}
