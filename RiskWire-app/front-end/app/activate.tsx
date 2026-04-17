@@ -18,22 +18,12 @@ import { setOnboardingComplete, isOnboardingComplete, loadOnboardingState } from
 import { registerRider, buyPolicy } from '@/utils/api';
 
 // ── Data ────────────────────────────────────────────────────────────────────
-const AGES = Array.from({ length: 63 }, (_, i) => `${i + 18}`);
-
-const CITIES = [
-  'Chennai', 'Coimbatore', 'Kanchipuram', 'Tiruvallur', 'Vellore',
-  'Salem', 'Madurai', 'Tiruchirapalli', 'Erode', 'Namakkal',
-  'Delhi', 'Bengaluru', 'Pune', 'Hyderabad', 'Mumbai',
-  'Thane', 'Gurgaon', 'Ghaziabad', 'Kolkata', 'Ahmedabad',
-];
-
-// STEP 1 = Age, STEP 2 = City, STEP 3 = Name + Phone, STEP 4 = UPI Payment
-const TOTAL_STEPS = 4;
+// STEP 1 = Name + Phone, STEP 2 = Auto-Payment Setup, STEP 3 = Payment Confirmation
+const TOTAL_STEPS = 3;
 const STEP_TITLES = [
-  'Select your age',
-  'Select your city',
   'Save your progress',
-  'Confirm payment',
+  'Set up auto-payment',
+  'Confirm & Activate',
 ];
 
 // ── UPI IDs for mock payment ─────────────────────────────────────────────────
@@ -52,12 +42,9 @@ const PLAN_PREMIUMS: Record<string, number> = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ActivateScreen() {
-  const { plan } = useLocalSearchParams<{ plan: string }>();
+  const { plan, city, age, platform, workerId } = useLocalSearchParams<{ plan: string; city: string; age: string; platform: string; workerId: string }>();
 
   const [step, setStep] = useState(1);
-  const [age, setAge] = useState('');
-  const [city, setCity] = useState('');
-  const [citySearch, setCitySearch] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [showAgePicker, setShowAgePicker] = useState(false);
@@ -80,15 +67,10 @@ export default function ActivateScreen() {
     });
   }, []);
 
-  const filteredCities = CITIES.filter((c) =>
-    c.toLowerCase().includes(citySearch.toLowerCase())
-  );
-
   const canContinue =
-    (step === 1 && age !== '') ||
-    (step === 2 && city !== '') ||
-    (step === 3 && name.trim() !== '' && phone.length >= 10) ||
-    (step === 4 && paymentDone);
+    (step === 1 && name.trim() !== '' && phone.length >= 10) ||
+    (step === 2 && selectedUpi !== '') ||
+    (step === 3 && paymentDone);
 
   const handleMockPayment = async () => {
     if (!selectedUpi || upiPin.length < 4) return;
@@ -104,19 +86,19 @@ export default function ActivateScreen() {
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Final: create account
+      // Final: create account with data from onboarding + activation
       setLoading(true);
       setError('');
       try {
         const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
-        const zone = urbanCities.includes(city) ? 'urban' : 'urban';
+        const zone = city && urbanCities.includes(city) ? 'urban' : 'urban';
         const rider = await registerRider({
           name: name.trim(),
           phone: phone.trim(),
-          city,
+          city: city || 'Delhi',
           zone,
-          platform: 'General',
-          age: parseInt(age, 10),
+          platform: platform || 'General',
+          age: parseInt(age || '25', 10),
         });
         const tier = tierKey;
         await buyPolicy(rider.id, tier);
@@ -166,129 +148,74 @@ export default function ActivateScreen() {
           <View style={styles.formCol}>
             <Text style={styles.stepTitle}>{STEP_TITLES[step - 1]}</Text>
 
-            {/* STEP 1: Age */}
-            {step === 1 && (
-              <View style={styles.stepContent}>
+        {/* STEP 1: Name + Phone */}
+        {step === 1 && (
+          <View style={styles.stepContent}>
+            <View style={styles.floatField}>
+              <Text style={styles.floatLabel}>Your full name</Text>
+              <TextInput
+                style={styles.floatInput}
+                placeholder="Enter your name"
+                placeholderTextColor="#AAA"
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+
+            <View style={styles.floatField}>
+              <Text style={styles.floatLabel}>Enter mobile number</Text>
+              <View style={styles.phoneRow}>
+                <View style={styles.countryCode}>
+                  <Text style={styles.countryFlag}>🇮🇳</Text>
+                  <ChevronDown size={13} color="#555" />
+                  <Text style={styles.countryDial}>+91</Text>
+                </View>
+                <TextInput
+                  style={[styles.floatInput, { flex: 1, borderWidth: 0 }]}
+                  placeholder="Mobile number"
+                  placeholderTextColor="#AAA"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  value={phone}
+                  onChangeText={setPhone}
+                />
+                {phone.length >= 10 && <Check size={18} color="#00A25B" />}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* STEP 2: Auto-Payment Setup */}
+        {step === 2 && (
+          <View style={styles.stepContent}>
+            <View style={styles.setupCard}>
+              <Shield size={32} color="#00A25B" />
+              <Text style={styles.setupTitle}>Let's set up auto-payment</Text>
+              <Text style={styles.setupSub}>Your premiums will be automatically deducted every month from your chosen UPI app</Text>
+            </View>
+
+            <Text style={styles.sectionLabel}>Select UPI App for Auto-Payment</Text>
+            <View style={styles.upiGrid}>
+              {MOCK_UPI_IDS.map((u) => (
                 <TouchableOpacity
-                  style={styles.dropdown}
-                  onPress={() => setShowAgePicker(true)}
+                  key={u.id}
+                  style={[styles.upiCard, selectedUpi === u.id && styles.upiCardSel]}
+                  onPress={() => setSelectedUpi(u.id)}
                 >
-                  <Text style={styles.dropdownLabel}>Your age</Text>
-                  <View style={styles.dropdownValue}>
-                    <Text style={age ? styles.dropdownValueText : styles.dropdownPlaceholder}>
-                      {age ? `${age} yr` : 'Select'}
-                    </Text>
-                    <ChevronDown size={18} color="#555" />
-                  </View>
-                </TouchableOpacity>
-
-                <Modal
-                  visible={showAgePicker}
-                  transparent
-                  animationType="slide"
-                  onRequestClose={() => setShowAgePicker(false)}
-                >
-                  <View style={styles.modalOverlay}>
-                    <View style={styles.modalSheet}>
-                      <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Select Age</Text>
-                        <TouchableOpacity onPress={() => setShowAgePicker(false)}>
-                          <X size={22} color="#333" />
-                        </TouchableOpacity>
-                      </View>
-                      <FlatList
-                        data={AGES}
-                        keyExtractor={(item) => item}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            style={[styles.ageOption, age === item && styles.ageOptionSelected]}
-                            onPress={() => { setAge(item); setShowAgePicker(false); }}
-                          >
-                            <Text style={[styles.ageOptionText, age === item && styles.ageOptionTextSel]}>
-                              {item} years
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      />
-                    </View>
-                  </View>
-                </Modal>
-              </View>
-            )}
-
-            {/* STEP 2: City */}
-            {step === 2 && (
-              <View style={styles.stepContent}>
-                <View style={styles.searchBox}>
-                  <Search size={16} color="#555" />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search your city"
-                    placeholderTextColor="#AAA"
-                    value={citySearch}
-                    onChangeText={setCitySearch}
-                  />
-                  {citySearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setCitySearch('')}>
-                      <X size={16} color="#999" />
-                    </TouchableOpacity>
+                  <Text style={styles.upiEmoji}>{u.icon}</Text>
+                  <Text style={styles.upiName}>{u.name}</Text>
+                  <Text style={styles.upiId}>{u.upiId}</Text>
+                  {selectedUpi === u.id && (
+                    <View style={styles.upiCheck}><Check size={12} color="#00529B" /></View>
                   )}
-                </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
-                <Text style={styles.sectionLabel}>Popular cities</Text>
-                <View style={styles.chipGrid}>
-                  {filteredCities.map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.chip, city === c && styles.chipSelected]}
-                      onPress={() => setCity(c)}
-                    >
-                      <Text style={[styles.chipText, city === c && styles.chipTextSel]}>{c}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* STEP 3: Name + Phone */}
-            {step === 3 && (
-              <View style={styles.stepContent}>
-                <View style={styles.floatField}>
-                  <Text style={styles.floatLabel}>Your full name</Text>
-                  <TextInput
-                    style={styles.floatInput}
-                    placeholder="Enter your name"
-                    placeholderTextColor="#AAA"
-                    value={name}
-                    onChangeText={setName}
-                  />
-                </View>
-
-                <View style={styles.floatField}>
-                  <Text style={styles.floatLabel}>Enter mobile number</Text>
-                  <View style={styles.phoneRow}>
-                    <View style={styles.countryCode}>
-                      <Text style={styles.countryFlag}>🇮🇳</Text>
-                      <ChevronDown size={13} color="#555" />
-                      <Text style={styles.countryDial}>+91</Text>
-                    </View>
-                    <TextInput
-                      style={[styles.floatInput, { flex: 1, borderWidth: 0 }]}
-                      placeholder="Mobile number"
-                      placeholderTextColor="#AAA"
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                      value={phone}
-                      onChangeText={setPhone}
-                    />
-                    {phone.length >= 10 && <Check size={18} color="#00A25B" />}
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* STEP 4: UPI Mock Payment */}
-            {step === 4 && (
+        {/* STEP 3: Payment Confirmation */}
+        {step === 3 && (
               <View style={styles.stepContent}>
                 {/* Plan summary */}
                 <View style={styles.planSummaryCard}>
@@ -348,13 +275,13 @@ export default function ActivateScreen() {
                           onPress={handleMockPayment}
                           disabled={paymentLoading || upiPin.length < 4}
                         >
-                          {paymentLoading ? (
+              {paymentLoading ? (
                             <View style={styles.payBtnInner}>
                               <ActivityIndicator color="#FFF" size="small" />
                               <Text style={styles.payBtnText}>Processing payment…</Text>
                             </View>
                           ) : (
-                            <Text style={styles.payBtnText}>Pay ₹{premium} via UPI</Text>
+                            <Text style={styles.payBtnText}>Pay ₹{premium} & Activate →</Text>
                           )}
                         </TouchableOpacity>
                       </>
@@ -380,7 +307,7 @@ export default function ActivateScreen() {
               disabled={!canContinue || loading}
             >
               <Text style={styles.continueBtnText}>
-                {loading ? 'Creating Account...' : step === TOTAL_STEPS ? 'Activate Policy →' : 'Continue ›'}
+                {loading ? 'Activating Policy...' : step === TOTAL_STEPS ? 'Complete Activation →' : 'Continue ›'}
               </Text>
             </TouchableOpacity>
 
@@ -666,6 +593,15 @@ const styles = StyleSheet.create({
   infoCardDesc: { fontSize: 12, color: '#555', lineHeight: 18 },
   infoCheckRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   infoCheckText: { fontSize: 12, color: '#1A1A1A', flex: 1 },
+
+  // Setup card for auto-payment
+  setupCard: {
+    backgroundColor: '#F0FDF4', borderRadius: 14, padding: 20,
+    borderWidth: 1, borderColor: '#86EFAC',
+    alignItems: 'center', gap: 12, marginBottom: 24,
+  },
+  setupTitle: { fontSize: 18, fontWeight: '700', color: '#14532D' },
+  setupSub: { fontSize: 13, color: '#4B7C59', lineHeight: 18, textAlign: 'center' },
 
   // Trust footer
   trustFooter: { backgroundColor: '#F0F4FF', borderRadius: 16, padding: 20, gap: 16 },

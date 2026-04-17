@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Check, ChevronDown, BriefcaseMedical } from 'lucide-react-native';
 
 const PLANS = [
@@ -44,6 +44,8 @@ const PLANS = [
 ];
 
 export default function PlansScreen() {
+  const { city, platform, age, workerId } = useLocalSearchParams<{ city: string; platform: string; age: string; workerId: string }>();
+  
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -109,7 +111,7 @@ export default function PlansScreen() {
                    
                    <TouchableOpacity 
                      style={styles.actionBtn}
-                     onPress={() => router.push({ pathname: '/activate', params: { plan: plan.name } })}
+                     onPress={() => router.push({ pathname: '/activate', params: { plan: plan.name, city, platform, age, workerId } })}
                    >
                      <Text style={styles.actionBtnText}>Activate ›</Text>
                    </TouchableOpacity>

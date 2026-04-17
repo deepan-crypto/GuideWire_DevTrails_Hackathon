@@ -101,10 +101,10 @@ export default function OnboardingScreen() {
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Done with onboarding — go to plans page (passing city & platform info)
+      // Done with onboarding — go to plans page (passing city & platform & age info)
       router.push({
         pathname: '/plans' as any,
-        params: { city, platform, age },
+        params: { city, platform, age, workerId },
       });
     }
   };
