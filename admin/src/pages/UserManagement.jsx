@@ -1,48 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw, Loader2 } from 'lucide-react'
+import { fetchTriggerZones } from '../services/api'
 
-/* ── Mock data (fallback when backend is unavailable) ──────────────────── */
-const MOCK_RIDERS = [
-  { id: 1, name: 'Amit Sharma', phone: '9876543210', city: 'Delhi', zone: 'MZ-DEL-04', platform: 'Swiggy', age: 28, isPolicyActive: true, policyTier: 'PRO', walletBalance: 1200, registeredAt: '2026-03-10' },
-  { id: 2, name: 'Priya Patel', phone: '9123456789', city: 'Mumbai', zone: 'MZ-MUM-02', platform: 'Zomato', age: 24, isPolicyActive: true, policyTier: 'STANDARD', walletBalance: 850, registeredAt: '2026-03-11' },
-  { id: 3, name: 'Ravi Kumar', phone: '9988776655', city: 'Chennai', zone: 'MZ-CHN-01', platform: 'Dunzo', age: 31, isPolicyActive: true, policyTier: 'BASIC', walletBalance: 300, registeredAt: '2026-03-12' },
-  { id: 4, name: 'Deepika Nair', phone: '9112233445', city: 'Bengaluru', zone: 'MZ-BLR-03', platform: 'Swiggy', age: 26, isPolicyActive: false, policyTier: null, walletBalance: 0, registeredAt: '2026-03-13' },
-  { id: 5, name: 'Karthik Raj', phone: '9556677880', city: 'Hyderabad', zone: 'MZ-HYD-01', platform: 'Rapido', age: 29, isPolicyActive: true, policyTier: 'PRO', walletBalance: 2100, registeredAt: '2026-03-14' },
-  { id: 6, name: 'Sneha Gupta', phone: '9334455667', city: 'Pune', zone: 'MZ-PUN-02', platform: 'Zomato', age: 23, isPolicyActive: true, policyTier: 'STANDARD', walletBalance: 640, registeredAt: '2026-03-15' },
-  { id: 7, name: 'Mohammad Ali', phone: '9445566778', city: 'Delhi', zone: 'MZ-DEL-07', platform: 'Uber', age: 34, isPolicyActive: true, policyTier: 'BASIC', walletBalance: 180, registeredAt: '2026-03-16' },
-  { id: 8, name: 'Lakshmi Iyer', phone: '9667788990', city: 'Chennai', zone: 'MZ-CHN-03', platform: 'Dunzo', age: 27, isPolicyActive: false, policyTier: null, walletBalance: 0, registeredAt: '2026-03-17' },
-  { id: 9, name: 'Rahul Verma', phone: '9778899001', city: 'Mumbai', zone: 'MZ-MUM-05', platform: 'Swiggy', age: 30, isPolicyActive: true, policyTier: 'PRO', walletBalance: 3200, registeredAt: '2026-03-18' },
-  { id: 10, name: 'Ananya Das', phone: '9889900112', city: 'Kolkata', zone: 'MZ-KOL-01', platform: 'Rapido', age: 25, isPolicyActive: true, policyTier: 'STANDARD', walletBalance: 920, registeredAt: '2026-03-19' },
-]
-
-const ADMIN_USERS = [
-  { id: 1, name: 'Saravana Karthiek', email: 'saravana@riskwire.in', role: 'Super Admin', status: 'Active', lastLogin: '2026-03-26 20:30' },
-  { id: 2, name: 'Deepan', email: 'deepan@riskwire.in', role: 'Claims Manager', status: 'Active', lastLogin: '2026-03-26 19:45' },
-  { id: 3, name: 'DevTrails Bot', email: 'bot@riskwire.in', role: 'System', status: 'Active', lastLogin: '2026-03-26 20:50' },
-]
-
-const AUDIT_LOG = [
-  { time: '20:48:32', user: 'System', action: 'Actuarial engine ran — 0 triggers detected', type: 'system' },
-  { time: '20:30:15', user: 'Saravana K.', action: 'Exported policy report (10 records)', type: 'export' },
-  { time: '19:55:00', user: 'System', action: 'ML Oracle pricing sync completed — 9 zones updated', type: 'system' },
-  { time: '19:45:22', user: 'Deepan', action: 'Viewed Rider #5 (Karthik Raj) profile', type: 'view' },
-  { time: '18:30:00', user: 'System', action: 'Heat trigger detected in MZ-DEL-04 — 2 payouts auto-approved', type: 'trigger' },
-  { time: '17:12:45', user: 'Saravana K.', action: 'Approved manual claim CLM-2026-008', type: 'action' },
-  { time: '16:00:00', user: 'System', action: 'Daily backup completed — 10 riders, 10 policies, 10 claims', type: 'system' },
-  { time: '14:22:10', user: 'Deepan', action: 'Updated zone mapping for MZ-CHN-03', type: 'action' },
-]
-
-const ZONES = [
-  { id: 'MZ-DEL-04', city: 'Delhi', area: 'Connaught Place', riders: 2, risk: 'High', temp: '46°C', rainfall: '12mm' },
-  { id: 'MZ-MUM-02', city: 'Mumbai', area: 'Andheri', riders: 2, risk: 'Moderate', temp: '34°C', rainfall: '85mm' },
-  { id: 'MZ-CHN-01', city: 'Chennai', area: 'T. Nagar', riders: 1, risk: 'High', temp: '44°C', rainfall: '15mm' },
-  { id: 'MZ-BLR-03', city: 'Bengaluru', area: 'Koramangala', riders: 1, risk: 'Low', temp: '30°C', rainfall: '22mm' },
-  { id: 'MZ-HYD-01', city: 'Hyderabad', area: 'Hitech City', riders: 1, risk: 'Moderate', temp: '42°C', rainfall: '8mm' },
-  { id: 'MZ-PUN-02', city: 'Pune', area: 'Hinjewadi', riders: 1, risk: 'Low', temp: '33°C', rainfall: '18mm' },
-  { id: 'MZ-DEL-07', city: 'Delhi', area: 'Dwarka', riders: 1, risk: 'High', temp: '47°C', rainfall: '5mm' },
-  { id: 'MZ-CHN-03', city: 'Chennai', area: 'OMR', riders: 1, risk: 'Moderate', temp: '43°C', rainfall: '30mm' },
-  { id: 'MZ-KOL-01', city: 'Kolkata', area: 'Salt Lake', riders: 1, risk: 'Low', temp: '36°C', rainfall: '45mm' },
-]
+const BASE_URL = 'http://localhost:8080'
 
 /* ── Helper components ─────────────────────────────────────────────────── */
 function TierBadge({ tier }) {
@@ -135,20 +95,35 @@ function exportCSV(data, filename) {
 export default function UserManagement() {
   const [activeTab, setActiveTab] = useState('riders')
   const [search, setSearch] = useState('')
-  const [riders, setRiders] = useState(MOCK_RIDERS)
+  const [riders, setRiders] = useState([])
   const [toast, setToast] = useState(null)
   const [viewRider, setViewRider] = useState(null)
-  const [filterStatus, setFilterStatus] = useState('all') // 'all' | 'active' | 'inactive'
+  const [filterStatus, setFilterStatus] = useState('all')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [zones, setZones] = useState([])
+  const [adminUsers, setAdminUsers] = useState([])
+  const [auditLog, setAuditLog] = useState([])
   const PAGE_SIZE = 5
   const [page, setPage] = useState(1)
 
-  const BASE_URL = 'http://localhost:8080'
   useEffect(() => {
-    fetch(`${BASE_URL}/api/v1/admin/riders`)
-      .then(r => r.json())
-      .then(data => { if (data && data.length > 0) setRiders(data) })
-      .catch(() => { })
+    setLoading(true)
+    Promise.all([
+      fetch(`${BASE_URL}/api/v1/admin/riders`).then(r => r.json()).then(data => {
+        if (data && data.length > 0) setRiders(data)
+      }).catch(() => { }),
+      fetchTriggerZones().then(data => {
+        if (data && data.length > 0) {
+          setZones(data.map(z => ({
+            id: z.id, city: z.name.split(',')[1]?.trim() || z.name,
+            area: z.name.split(',')[0]?.trim() || z.id,
+            riders: z.riders, risk: z.triggered ? 'High' : (z.temp >= 38 ? 'Moderate' : 'Low'),
+            temp: `${z.temp}°C`, rainfall: `${z.rain}mm`
+          })))
+        }
+      }),
+    ]).finally(() => setLoading(false))
   }, [])
 
   const filteredRiders = riders.filter(r => {
@@ -185,9 +160,9 @@ export default function UserManagement() {
 
   const TABS = [
     { id: 'riders', label: 'Rider Registry', count: riders.length },
-    { id: 'admins', label: 'Admin Roles', count: ADMIN_USERS.length },
-    { id: 'audit', label: 'Audit Log', count: AUDIT_LOG.length },
-    { id: 'zones', label: 'Zone Management', count: ZONES.length },
+    { id: 'admins', label: 'Admin Roles', count: adminUsers.length },
+    { id: 'audit', label: 'Audit Log', count: auditLog.length },
+    { id: 'zones', label: 'Zone Management', count: zones.length },
   ]
 
   return (
@@ -376,7 +351,7 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody>
-                {ADMIN_USERS.map((u, i) => (
+                {adminUsers.map((u, i) => (
                   <tr key={u.id} className={`border-b border-gw-border ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
@@ -437,7 +412,7 @@ export default function UserManagement() {
             </button>
           </div>
           <div className="divide-y divide-gw-border">
-            {AUDIT_LOG.map((log, i) => (
+            {auditLog.map((log, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50/50">
                 <div className="mt-0.5"><AuditIcon type={log.type} /></div>
                 <div className="flex-1 min-w-0">
@@ -478,7 +453,7 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody>
-                {ZONES.map((z, i) => {
+                {zones.map((z, i) => {
                   const temp = parseInt(z.temp)
                   const rain = parseInt(z.rainfall)
                   const heatTrigger = temp >= 45

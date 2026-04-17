@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { policies as mockPolicies } from '../data/mockData'
 import { fetchPolicies } from '../services/api'
-import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Search, Filter, Download, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 
 function RiskBadge({ score }) {
   let color = 'bg-green-100 text-green-700 border-green-200'
@@ -36,9 +35,11 @@ export default function PolicyCenter() {
   const navigate = useNavigate()
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState(null)
-  const [policies, setPolicies] = useState(mockPolicies)
+  const [policies, setPolicies] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    setLoading(true)
     fetchPolicies().then(data => {
       if (data && data.length > 0) {
         const mapped = data.map(p => ({
@@ -47,7 +48,7 @@ export default function PolicyCenter() {
         }))
         setPolicies(mapped)
       }
-    })
+    }).finally(() => setLoading(false))
   }, [])
 
   const filtered = policies.filter(p =>
@@ -57,7 +58,7 @@ export default function PolicyCenter() {
   )
 
   const handleExport = () => {
-    exportCSV(filtered, `gig-worker-policies-${new Date().toISOString().slice(0,10)}.csv`)
+    exportCSV(filtered, `gig-worker-policies-${new Date().toISOString().slice(0, 10)}.csv`)
     setToast('Exported ' + filtered.length + ' policies to CSV')
     setTimeout(() => setToast(null), 3000)
   }

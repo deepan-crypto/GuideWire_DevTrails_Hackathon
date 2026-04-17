@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { billingData as mockBillingData } from '../data/mockData'
 import { fetchBillingSummary, fetchTransactions, fetchMonthlyTrend } from '../services/api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
-import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, CreditCard, PieChart, FileText, Download, CheckCircle, Loader2 } from 'lucide-react'
 
 function StatCard({ label, value, change, positive, icon: Icon, accent }) {
   return (
@@ -47,23 +46,30 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function BillingCenter() {
-  const [summary, setSummary] = useState(mockBillingData.summary)
-  const [monthlyTrend, setMonthlyTrend] = useState(mockBillingData.monthlyTrend)
-  const [recentTransactions, setRecentTransactions] = useState(mockBillingData.recentTransactions)
+  const [summary, setSummary] = useState({
+    totalPremiums: 0, totalPayouts: 0, netRevenue: 0, lossRatio: 0,
+    activePolicies: 0, claimsPaid: 0, avgClaimSize: 0, autoApprovalRate: 0,
+  })
+  const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [recentTransactions, setRecentTransactions] = useState([])
   const [toast, setToast] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchBillingSummary().then(data => { if (data) setSummary(data) })
-    fetchMonthlyTrend().then(data => { if (data && data.length > 0) setMonthlyTrend(data) })
-    fetchTransactions().then(data => {
-      if (data && data.length > 0) {
-        const mapped = data.map(t => ({
-          id: t.txnId, type: t.type, rider: t.riderName, amount: t.amount,
-          date: t.date, description: t.description
-        }))
-        setRecentTransactions(mapped)
-      }
-    })
+    setLoading(true)
+    Promise.all([
+      fetchBillingSummary().then(data => { if (data) setSummary(data) }),
+      fetchMonthlyTrend().then(data => { if (data && data.length > 0) setMonthlyTrend(data) }),
+      fetchTransactions().then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map(t => ({
+            id: t.txnId, type: t.type, rider: t.riderName, amount: t.amount,
+            date: t.date, description: t.description
+          }))
+          setRecentTransactions(mapped)
+        }
+      })
+    ]).finally(() => setLoading(false))
   }, [])
 
   const handleExportLedger = () => {

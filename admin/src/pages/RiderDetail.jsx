@@ -1,12 +1,12 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { policies, riderClaims, riderBilling, riderActivities, defaultActivities } from '../data/mockData'
+import { fetchPolicyDetail } from '../services/api'
 import {
   ArrowLeft, Edit, FilePlus, StickyNote, MapPin, Phone, Mail, Calendar, Shield,
   CreditCard, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronRight,
-  MessageSquare, PhoneCall, Video, Send
+  MessageSquare, PhoneCall, Video, Send, Loader2
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const PLAN_COLORS = { 'Heat Shield Pro': '#00529B', 'Heat Shield Basic': '#4A90D9', 'Rain Guard Plus': '#2ECC71', 'Multi-Peril Cover': '#E67E22' }
 
@@ -50,8 +50,25 @@ export default function RiderDetail() {
   const { riderId } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('Related')
+  const [rider, setRider] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const rider = policies.find(p => p.id === riderId)
+  useEffect(() => {
+    setLoading(true)
+    fetchPolicyDetail(riderId).then(data => {
+      if (data) setRider(data)
+    }).finally(() => setLoading(false))
+  }, [riderId])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-gw-blue animate-spin mb-3" />
+        <p className="text-[12px] text-gw-text-muted">Loading rider details...</p>
+      </div>
+    )
+  }
+
   if (!rider) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -65,9 +82,9 @@ export default function RiderDetail() {
     )
   }
 
-  const claims = riderClaims[riderId] || []
-  const billing = riderBilling[riderId] || {}
-  const activities = riderActivities[riderId] || defaultActivities
+  const claims = rider.claims || []
+  const billing = rider.billing || {}
+  const activities = rider.activities || { upcoming: [], past: [] }
   const openClaims = claims.filter(c => c.status === 'Open').length
   const closedClaims = claims.filter(c => c.status === 'Closed').length
 
@@ -143,11 +160,10 @@ export default function RiderDetail() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-              activeTab === tab
+            className={`px-4 py-2 text-[12px] font-medium border-b-2 transition-colors ${activeTab === tab
                 ? 'border-gw-blue text-gw-blue'
                 : 'border-transparent text-gw-text-muted hover:text-gw-text'
-            }`}
+              }`}
           >
             {tab}
           </button>
@@ -390,9 +406,8 @@ export default function RiderDetail() {
             <div>
               {activities.upcoming.map((item, idx) => (
                 <div key={idx} className="px-4 py-2.5 border-b border-gw-border/50 hover:bg-gw-bg/30 transition-colors flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                    item.color === 'red' ? 'bg-red-500' : item.color === 'orange' ? 'bg-orange-500' : 'bg-blue-500'
-                  }`}></div>
+                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${item.color === 'red' ? 'bg-red-500' : item.color === 'orange' ? 'bg-orange-500' : 'bg-blue-500'
+                    }`}></div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />

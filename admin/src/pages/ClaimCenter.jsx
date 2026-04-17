@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { triggerZones as mockTriggerZones, autoApprovalLog as mockApprovalLog } from '../data/mockData'
 import { fetchTriggerZones, fetchApprovalLog } from '../services/api'
 import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw } from 'lucide-react'
 
@@ -76,24 +75,28 @@ function TriggerZoneCard({ zone }) {
 }
 
 export default function ClaimCenter() {
-  const [zones, setZones] = useState(mockTriggerZones)
-  const [liveLog, setLiveLog] = useState(mockApprovalLog.slice(0, 5))
+  const [zones, setZones] = useState([])
+  const [liveLog, setLiveLog] = useState([])
   const [timer, setTimer] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) })
-    fetchApprovalLog().then(data => {
-      if (data && data.length > 0) {
-        const mapped = data.map(c => ({
-          id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
-          zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
-          status: c.status, paidAt: c.approvedAt || 'Pending'
-        }))
-        setLiveLog(mapped)
-      }
-    })
+    setLoading(true)
+    Promise.all([
+      fetchTriggerZones().then(data => { if (data && data.length > 0) setZones(data) }),
+      fetchApprovalLog().then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map(c => ({
+            id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
+            zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
+            status: c.status, paidAt: c.approvedAt || 'Pending'
+          }))
+          setLiveLog(mapped)
+        }
+      })
+    ]).finally(() => setLoading(false))
   }, [])
 
   // Simulate live log appending

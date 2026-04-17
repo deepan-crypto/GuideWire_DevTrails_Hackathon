@@ -155,92 +155,73 @@ async function getAutoApprovalLog() {
   return claims.map(formatClaim);
 }
 
-// ── Trigger Zones ─────────────────────────────────────────────────────────
+// ── Trigger Zones — LIVE from pricing-engine (no mock data) ───────────────
+
+const ZONE_REGISTRY = {
+  'MZ-DEL-04': 'Connaught Place, Delhi',
+  'MZ-DEL-09': 'Karol Bagh, Delhi',
+  'MZ-MUM-12': 'Andheri West, Mumbai',
+  'MZ-BLR-07': 'Koramangala, Bangalore',
+  'MZ-HYD-03': 'HITEC City, Hyderabad',
+  'MZ-CHN-05': 'T. Nagar, Chennai',
+  'MZ-PUN-02': 'Hinjewadi, Pune',
+  'MZ-HYD-08': 'Gachibowli, Hyderabad',
+  'MZ-CHN-11': 'Adyar, Chennai',
+};
 
 async function getTriggerZones() {
   const activePolicies = await Policy.find({ status: 'Active' });
 
-  const zoneMap = {};
+  // Count riders per zone from real policy data
+  const zoneRiderCount = {};
   for (const p of activePolicies) {
     if (!p.zone) continue;
     const zoneId = p.zone.split(' ')[0];
-    if (!zoneMap[zoneId]) zoneMap[zoneId] = [];
-    zoneMap[zoneId].push(p);
+    zoneRiderCount[zoneId] = (zoneRiderCount[zoneId] || 0) + 1;
   }
 
-  const fallbackWeather = {
-    'MZ-DEL-04': [47.2, 0, 45, 80], 'MZ-DEL-09': [46.1, 0, 45, 80],
-    'MZ-MUM-12': [34.5, 112, 42, 80], 'MZ-BLR-07': [31.2, 22, 40, 80],
-    'MZ-HYD-03': [38.9, 5, 43, 80], 'MZ-CHN-05': [36.7, 95, 42, 80],
-    'MZ-PUN-02': [29.4, 8, 41, 80], 'MZ-HYD-08': [39.5, 3, 43, 80],
-    'MZ-CHN-11': [35.9, 88, 42, 80],
-  };
-  const zoneNames = {
-    'MZ-DEL-04': 'Connaught Place, Delhi', 'MZ-DEL-09': 'Karol Bagh, Delhi',
-    'MZ-MUM-12': 'Andheri West, Mumbai', 'MZ-BLR-07': 'Koramangala, Bangalore',
-    'MZ-HYD-03': 'HITEC City, Hyderabad', 'MZ-CHN-05': 'T. Nagar, Chennai',
-    'MZ-PUN-02': 'Hinjewadi, Pune', 'MZ-HYD-08': 'Gachibowli, Hyderabad',
-    'MZ-CHN-11': 'Adyar, Chennai',
-  };
-
-  const policyZoneNames = {};
-  for (const policy of activePolicies) {
-    if (!policy.zone) continue;
-    const zoneId = policy.zone.split(' ')[0];
-    const name = policy.zone.replace(zoneId, '').trim();
-    if (name) policyZoneNames[zoneId] = name.replace(/[()]/g, '').trim();
-  }
-
-  let zoneIds = Object.keys(zoneMap);
-  if (zoneIds.length === 0) zoneIds = Object.keys(fallbackWeather);
-
-  // Count pending claims per zone using Mongoose
-  const allClaims = await Claim.find();
+  // Count pending claims per zone from real claim data
+  const openClaims = await Claim.find({ status: 'Open' });
   const pendingClaimsByZone = {};
-  for (const c of allClaims) {
-    if (c.status === 'Open') {
-      pendingClaimsByZone[c.zone] = (pendingClaimsByZone[c.zone] || 0) + 1;
-    }
+  for (const c of openClaims) {
+    pendingClaimsByZone[c.zone] = (pendingClaimsByZone[c.zone] || 0) + 1;
   }
 
+  // Fetch LIVE weather for every registered zone from pricing-engine
   const zones = [];
-  for (const zoneId of zoneIds) {
-    const fb = fallbackWeather[zoneId] || [32.0, 10.0, 42.0, 80.0];
-    let realTemp = fb[0], realRain = fb[1];
-    const heatThreshold = fb[2], rainThreshold = fb[3];
+  for (const [zoneId, zoneName] of Object.entries(ZONE_REGISTRY)) {
+    let temp = 0, rain = 0, humidity = 0, wind = 0, aqi = 0;
     let triggered = false, triggerType = null;
 
     try {
       const res = await axios.get(`${ORACLE_BASE_URL}/api/v1/pricing/quote?zone=${zoneId}`);
       const live = res.data;
       if (live) {
-        if (live.live_temp != null) realTemp = Math.round(live.live_temp * 10) / 10;
-        if (live.live_rain != null) realRain = Math.round(live.live_rain * 10) / 10;
-        if (live.payout_triggered === true) {
-          triggered = true;
-          triggerType = live.trigger_type ? live.trigger_type.toUpperCase() : 'WEATHER';
-        }
+        temp = live.live_temp ?? 0;
+        rain = live.live_rain ?? 0;
+        humidity = live.live_humidity ?? 0;
+        wind = live.live_wind_kmh ?? 0;
+        aqi = live.live_aqi ?? 0;
+        triggered = live.payout_triggered === true;
+        triggerType = live.trigger_type || null;
       }
-    } catch (e) { /* Fallback to static values */ }
-
-    if (!triggered) {
-      const heatTriggered = realTemp >= heatThreshold;
-      const rainTriggered = realRain >= rainThreshold;
-      triggered = heatTriggered || rainTriggered;
-      if (heatTriggered) triggerType = 'HEAT';
-      else if (rainTriggered) triggerType = 'RAIN';
+    } catch (e) {
+      console.warn(`[AdminService] Could not fetch live weather for ${zoneId}:`, e.message);
     }
 
     zones.push({
       id: zoneId,
-      name: policyZoneNames[zoneId] || zoneNames[zoneId] || zoneId,
-      temp: realTemp,
-      rain: realRain,
-      heatThreshold,
-      rainThreshold,
+      name: zoneName,
+      temp: Math.round(temp * 10) / 10,
+      rain: Math.round(rain * 10) / 10,
+      humidity: Math.round(humidity),
+      wind: Math.round(wind * 10) / 10,
+      aqi: Math.round(aqi),
+      heatThreshold: 42,
+      rainThreshold: 50,
       triggered,
       triggerType,
-      riders: (zoneMap[zoneId] || []).length,
+      riders: zoneRiderCount[zoneId] || 0,
       pendingClaims: pendingClaimsByZone[zoneId] || 0,
     });
   }
@@ -412,39 +393,68 @@ async function seedDemoFraudLogs() {
   await FraudLog.insertMany(demoData);
 }
 
-// ── Risk Heatmap ──────────────────────────────────────────────────────────
+// ── Risk Heatmap — LIVE from pricing-engine + MongoDB ─────────────────────
 
-function getRiskHeatmap() {
-  const zoneNames = {
-    'MZ-DEL-04': 'Connaught Place, Delhi', 'MZ-DEL-09': 'Karol Bagh, Delhi',
-    'MZ-MUM-12': 'Andheri West, Mumbai', 'MZ-BLR-07': 'Koramangala, Bangalore',
-    'MZ-HYD-03': 'HITEC City, Hyderabad', 'MZ-CHN-05': 'T. Nagar, Chennai',
-    'MZ-PUN-02': 'Hinjewadi, Pune', 'MZ-HYD-08': 'Gachibowli, Hyderabad',
-    'MZ-CHN-11': 'Adyar, Chennai',
-  };
-  const data = [
-    ['MZ-DEL-04', 82, 156, 42, 'HIGH', 47.2, 0.0],
-    ['MZ-DEL-09', 91, 89, 23, 'CRITICAL', 46.1, 0.0],
-    ['MZ-MUM-12', 71, 234, 78, 'HIGH', 34.5, 112.0],
-    ['MZ-BLR-07', 45, 312, 89, 'MEDIUM', 31.2, 22.0],
-    ['MZ-HYD-03', 58, 178, 56, 'MEDIUM', 38.9, 5.0],
-    ['MZ-CHN-05', 76, 145, 38, 'HIGH', 36.7, 95.0],
-    ['MZ-PUN-02', 34, 267, 102, 'LOW', 29.4, 8.0],
-    ['MZ-HYD-08', 63, 198, 67, 'MEDIUM', 39.5, 3.0],
-    ['MZ-CHN-11', 70, 123, 31, 'HIGH', 35.9, 88.0],
-  ];
-  return data.map(([zoneId, riskScore, totalRiders, insuredRiders, riskLevel, currentTemp, currentRain]) => ({
-    zone_id: zoneId,
-    zone_name: zoneNames[zoneId] || zoneId,
-    risk_score: riskScore,
-    total_riders: totalRiders,
-    insured_riders: insuredRiders,
-    uninsured_riders: totalRiders - insuredRiders,
-    insurance_penetration: Math.round((insuredRiders * 100) / totalRiders),
-    risk_level: riskLevel,
-    current_temp: currentTemp,
-    current_rain: currentRain,
-  }));
+async function getRiskHeatmap() {
+  const allRiders = await Rider.find();
+  const insuredRiders = await Rider.find({ is_policy_active: true });
+
+  // Count riders per zone
+  const totalByZone = {}, insuredByZone = {};
+  for (const r of allRiders) {
+    const z = r.zone || 'UNKNOWN';
+    totalByZone[z] = (totalByZone[z] || 0) + 1;
+  }
+  for (const r of insuredRiders) {
+    const z = r.zone || 'UNKNOWN';
+    insuredByZone[z] = (insuredByZone[z] || 0) + 1;
+  }
+
+  const heatmap = [];
+  for (const [zoneId, zoneName] of Object.entries(ZONE_REGISTRY)) {
+    let currentTemp = 0, currentRain = 0;
+
+    try {
+      const res = await axios.get(`${ORACLE_BASE_URL}/api/v1/pricing/quote?zone=${zoneId}`);
+      const live = res.data;
+      if (live) {
+        currentTemp = live.live_temp ?? 0;
+        currentRain = live.live_rain ?? 0;
+      }
+    } catch (e) { /* pricing-engine unreachable */ }
+
+    // Compute risk score from live data (0-100)
+    let riskScore = 0;
+    if (currentTemp >= 45) riskScore += 50;
+    else if (currentTemp >= 42) riskScore += 35;
+    else if (currentTemp >= 38) riskScore += 20;
+    else riskScore += Math.round(currentTemp / 4);
+
+    if (currentRain >= 80) riskScore += 40;
+    else if (currentRain >= 50) riskScore += 25;
+    else if (currentRain >= 20) riskScore += 10;
+
+    riskScore = Math.min(100, riskScore);
+    const riskLevel = riskScore >= 80 ? 'CRITICAL' : riskScore >= 60 ? 'HIGH' : riskScore >= 40 ? 'MEDIUM' : 'LOW';
+
+    const total = totalByZone[zoneId] || 0;
+    const insured = insuredByZone[zoneId] || 0;
+
+    heatmap.push({
+      zone_id: zoneId,
+      zone_name: zoneName,
+      risk_score: riskScore,
+      total_riders: total,
+      insured_riders: insured,
+      uninsured_riders: total - insured,
+      insurance_penetration: total > 0 ? Math.round((insured * 100) / total) : 0,
+      risk_level: riskLevel,
+      current_temp: Math.round(currentTemp * 10) / 10,
+      current_rain: Math.round(currentRain * 10) / 10,
+    });
+  }
+
+  return heatmap;
 }
 
 // ── Market Status for Admin ───────────────────────────────────────────────
