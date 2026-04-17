@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminService = require('../services/adminService');
+const { runActuarialEngineForZone } = require('../services/schedulerService');
 
 // GET /riders
 router.get('/riders', async (req, res) => {
@@ -147,8 +148,20 @@ router.get('/market-status', async (req, res) => {
 router.post('/trigger-claim', async (req, res) => {
   try {
     const { zoneId, triggerType, amount } = req.body;
+    // Save the manual trigger record
     const result = await adminService.triggerManualClaim(zoneId, triggerType, amount);
-    res.json(result);
+
+    // Fire-and-forget: run zone-scoped auto-pay in background
+    // This pays all active riders in the zone via XGBoost fraud check → payout → notification
+    runActuarialEngineForZone(zoneId, triggerType || 'MANUAL_WEATHER_TRIGGER')
+      .then(payResult => console.log(`[AdminTrigger] Auto-pay complete for zone ${zoneId}:`, payResult))
+      .catch(e => console.error(`[AdminTrigger] Auto-pay error for zone ${zoneId}:`, e.message));
+
+    res.json({
+      ...result,
+      auto_pay_initiated: true,
+      message: `Weather trigger saved. Auto-paying all active riders in zone ${zoneId}...`,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -256,4 +256,125 @@ function startSchedulers() {
   console.log('[Scheduler] Cron jobs registered: actuarial engine (hourly), market crash monitor (30 min), UPI auto-debit (weekly Monday 09:00 IST)');
 }
 
-module.exports = { startSchedulers, runActuarialEngine, runMarketCrashMonitor, runWeeklyPremiumAutoDebit };
+// ── Zone-scoped Auto-Pay (called directly by admin trigger-claim) ──────────
+// Runs the full actuarial engine for a single zone immediately (no cron wait)
+
+async function runActuarialEngineForZone(zone, triggerType = 'MANUAL_ADMIN') {
+  console.log(`[Scheduler] Running zone-scoped auto-pay for zone=${zone}, trigger=${triggerType}`);
+
+  const ridersInZone = await Rider.find({ zone, is_policy_active: true });
+  let paid = 0, blocked = 0;
+
+  for (const rider of ridersInZone) {
+    // Fraud check via Oracle ML endpoint
+    let isFraud = false;
+    try {
+      const claimId = 'CLM-ADMIN-' + rider._id + '-' + Date.now();
+      const fraudPayload = {
+        request_id: 'req_admin_' + Date.now(),
+        claim_context: {
+          claim_id: claimId,
+          user_id: rider.worker_id || String(rider._id),
+          disruption_type: triggerType,
+          hours: 4,
+          amount: rider.policy_tier === 'PRO' ? 1000 : rider.policy_tier === 'STANDARD' ? 500 : 300,
+          note: 'Admin-triggered parametric payout',
+          claim_timestamp: new Date().toISOString(),
+          claim_location: { lat: 13.08, lng: 80.27 },
+        },
+        current_location: { lat: 13.08, lng: 80.27, accuracy: 10, speed_kmh: 0, source: 'gps' },
+        user_profile: {
+          segment: 'transportation',
+          platform: rider.platform || 'Unknown',
+          zone: rider.zone,
+          work_hours: 8,
+          daily_earnings: rider.wallet_balance > 0 ? rider.wallet_balance : 1000,
+        },
+        previous_claims: { window_days: 90, total_count: 0, approved_count: 0, fraud_flag_count: 0, avg_ai_score: 0.5 },
+      };
+
+      const fraudRes = await axios.post(`${ORACLE_BASE_URL}/api/v1/fraud/score`, fraudPayload, { timeout: 8000 });
+      const fraudCheck = fraudRes.data;
+      isFraud = fraudCheck.fraud_flag === true;
+
+      await FraudLog.create({
+        claim_id: claimId,
+        rider_id: rider._id,
+        rider_name: rider.name,
+        fraud_flag: isFraud,
+        confidence_score: 1.0 - (fraudCheck.fraud_score || 0),
+        fraud_score: fraudCheck.fraud_score || 0,
+        ml_prediction: isFraud ? 'FRAUD' : 'NORMAL',
+        fraud_reasons: (fraudCheck.reason_codes || []).join(','),
+        zone,
+        gps_lat: 13.08,
+        gps_lon: 80.27,
+        network_rtt_ms: 35.0,
+        timestamp: new Date().toISOString(),
+        verdict: isFraud ? 'BLOCKED' : 'PASSED',
+      });
+    } catch (e) {
+      console.warn('[AutoPay] Fraud check failed (fail-open):', e.message);
+    }
+
+    if (isFraud) { blocked++; continue; }
+
+    // Payout amount by tier
+    let amount;
+    switch (rider.policy_tier) {
+      case 'STANDARD': amount = 500.0; break;
+      case 'PRO': amount = 1000.0; break;
+      default: amount = 300.0;
+    }
+    if (isMarketCrashActive() && rider.policy_tier !== 'BASIC') amount = 300.0;
+
+    rider.wallet_balance += amount;
+    rider.is_policy_active = false;
+    await rider.save();
+
+    const now = new Date();
+    const claimNumber = 'CLM-' + Date.now() + '-' + rider._id;
+
+    await PayoutLog.create({
+      rider_id: rider._id,
+      amount, timestamp: now,
+      trigger_type: triggerType,
+      zone,
+      claim_number: claimNumber,
+    });
+
+    await Claim.create({
+      claim_number: claimNumber,
+      policy_ref: `POL-GW-${now.getFullYear()}-${String(rider._id).slice(-6)}`,
+      rider_id: rider._id,
+      rider_name: rider.name,
+      product: rider.policy_tier,
+      fraud_risk: 'NO',
+      date_of_loss: now.toISOString().split('T')[0],
+      status: 'AUTO-APPROVED',
+      trigger_type: 'WEATHER',
+      amount, zone,
+      approved_at: now.toISOString(),
+    });
+
+    await Notification.create({
+      rider_id: rider._id,
+      type: 'WEATHER_PAYOUT',
+      title: '🌧️ Auto-Payout Received!',
+      message: `₹${amount} automatically credited to your wallet due to ${triggerType.replace(/_/g, ' ')} in zone ${zone}. Claim #${claimNumber}.`,
+      amount,
+      trigger_type: triggerType,
+      claim_number: claimNumber,
+      zone,
+      is_read: false,
+      created_at: now,
+    });
+
+    paid++;
+  }
+
+  console.log(`[AutoPay] Zone ${zone}: ${paid} riders paid, ${blocked} blocked by fraud check.`);
+  return { zone, riders_paid: paid, riders_blocked: blocked, trigger_type: triggerType };
+}
+
+module.exports = { startSchedulers, runActuarialEngine, runActuarialEngineForZone, runMarketCrashMonitor, runWeeklyPremiumAutoDebit };

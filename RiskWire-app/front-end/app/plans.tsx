@@ -66,7 +66,7 @@ export default function PlansScreen() {
   const handleActivate = (tier: string) => {
     router.push({
       pathname: '/activate',
-      params: { plan: tier, city, platform, age, workerId },
+      params: { plan: tier, city, platform, age, workerId, premium: String(prices[tier] || 0) },
     } as any);
   };
 

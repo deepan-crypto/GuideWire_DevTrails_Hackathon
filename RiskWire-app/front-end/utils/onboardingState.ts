@@ -5,14 +5,16 @@ const KEY_RIDER = 'rider_id';
 const KEY_INTRO_SEEN = 'intro_pages_seen';
 
 // In-memory cache for sync reads after initial load
-const _cache = { done: false, riderId: null as number | null, introSeen: false };
+// riderId is stored as string to support MongoDB ObjectId hex strings
+const _cache = { done: false, riderId: null as string | null, introSeen: false };
 
 /** Load both flags from storage into cache. Call once on app mount. */
 export async function loadOnboardingState(): Promise<boolean> {
   const val = await SecureStore.getItemAsync(KEY_DONE);
   _cache.done = val === 'true';
   const rId = await SecureStore.getItemAsync(KEY_RIDER);
-  _cache.riderId = rId ? parseInt(rId, 10) : null;
+  // Store as raw string — supports both MongoDB ObjectId (hex) and legacy numeric IDs
+  _cache.riderId = rId || null;
   const introVal = await SecureStore.getItemAsync(KEY_INTRO_SEEN);
   _cache.introSeen = introVal === 'true';
   return _cache.done;
@@ -29,7 +31,7 @@ export function hasSeenIntro(): boolean {
 }
 
 /** Synchronous riderId read — only reliable after loadOnboardingState() has resolved. */
-export function getCachedRiderId(): number | null {
+export function getCachedRiderId(): string | null {
   return _cache.riderId;
 }
 
@@ -39,12 +41,12 @@ export async function setIntroSeen(): Promise<void> {
   _cache.introSeen = true;
 }
 
-/** Mark onboarding as complete and store the riderId. */
-export async function setOnboardingComplete(riderId: number): Promise<void> {
+/** Mark onboarding as complete and store the riderId (supports MongoDB ObjectId strings). */
+export async function setOnboardingComplete(riderId: string | number): Promise<void> {
   await SecureStore.setItemAsync(KEY_DONE, 'true');
   await SecureStore.setItemAsync(KEY_RIDER, String(riderId));
   _cache.done = true;
-  _cache.riderId = riderId;
+  _cache.riderId = String(riderId);
 }
 
 /** Clear onboarding state (for logout / reset). */

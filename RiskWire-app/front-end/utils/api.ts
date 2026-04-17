@@ -79,13 +79,13 @@ export async function registerRider(data: {
   return request<Rider>(`/rider/register?${params}`, { method: 'POST' });
 }
 
-/** Fetch a rider's full profile by id. */
-export async function getRider(riderId: number): Promise<Rider> {
+/** Fetch a rider's full profile by id. Accepts MongoDB ObjectId string or legacy numeric id. */
+export async function getRider(riderId: string | number): Promise<Rider> {
   return request<Rider>(`/rider/${riderId}`);
 }
 
 /** Update rider personal details (name, phone, city, platform, age). */
-export async function updateRider(riderId: number, updates: Partial<Rider>): Promise<Rider> {
+export async function updateRider(riderId: string | number, updates: Partial<Rider>): Promise<Rider> {
   return request<Rider>(`/rider/${riderId}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
@@ -93,24 +93,24 @@ export async function updateRider(riderId: number, updates: Partial<Rider>): Pro
 }
 
 /** Get payout history for a rider, newest first. */
-export async function getPayouts(riderId: number): Promise<PayoutLog[]> {
+export async function getPayouts(riderId: string | number): Promise<PayoutLog[]> {
   return request<PayoutLog[]>(`/rider/${riderId}/payouts`);
 }
 
 /** Get notifications for a rider. */
-export async function getNotifications(riderId: number, limit: number = 20): Promise<Notification[]> {
+export async function getNotifications(riderId: string | number, limit: number = 20): Promise<Notification[]> {
   return request<Notification[]>(`/rider/${riderId}/notifications?limit=${limit}`);
 }
 
 /** Mark a notification as read. */
-export async function markNotificationAsRead(riderId: number, notificationId: string): Promise<Notification> {
+export async function markNotificationAsRead(riderId: string | number, notificationId: string): Promise<Notification> {
   return request<Notification>(`/rider/${riderId}/notifications/${notificationId}/read`, { method: 'POST' });
 }
 
 // ── Insurance endpoints ────────────────────────────────────────────
 
 /** Get pricing quote for all tiers for a rider's zone. */
-export async function getQuote(riderId: number): Promise<QuoteResponse> {
+export async function getQuote(riderId: string | number): Promise<QuoteResponse> {
   return request<QuoteResponse>(`/insurance/quote?riderId=${riderId}`);
 }
 
@@ -130,6 +130,6 @@ export async function getDynamicPricing(zone: string = 'MZ-DEL-04'): Promise<{
 }
 
 /** Purchase a policy tier (basic | standard | pro). Returns updated Rider. */
-export async function buyPolicy(riderId: number, tier: string): Promise<Rider> {
+export async function buyPolicy(riderId: string | number, tier: string): Promise<Rider> {
   return request<Rider>(`/insurance/buy?riderId=${riderId}&tier=${tier}`, { method: 'POST' });
 }

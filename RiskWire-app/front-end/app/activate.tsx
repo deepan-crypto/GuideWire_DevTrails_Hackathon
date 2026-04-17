@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronDown, Search, X, Check, Star, Shield, CreditCard, Smartphone } from 'lucide-react-native';
-import { setOnboardingComplete, isOnboardingComplete, loadOnboardingState } from '@/utils/onboardingState';
+import { setOnboardingComplete, isOnboardingComplete, loadOnboardingState, clearOnboardingState } from '@/utils/onboardingState';
 import { registerRider, buyPolicy } from '@/utils/api';
 
 // ── Data ────────────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ const PLAN_PREMIUMS: Record<string, number> = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function ActivateScreen() {
-  const { plan, city, age, platform, workerId } = useLocalSearchParams<{ plan: string; city: string; age: string; platform: string; workerId: string }>();
+  const { plan, city, age, platform, workerId, premium: premiumParam } = useLocalSearchParams<{ plan: string; city: string; age: string; platform: string; workerId: string; premium: string }>();
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
@@ -58,9 +58,11 @@ export default function ActivateScreen() {
   const [paymentDone, setPaymentDone] = useState(false);
 
   const tierKey = (plan || 'standard').toLowerCase();
-  const premium = PLAN_PREMIUMS[tierKey] || 349;
+  // Use ML premium from route params if available, otherwise fall back to defaults
+  const FALLBACK_PREMIUMS: Record<string, number> = { basic: 95, standard: 143, pro: 218 };
+  const premium = premiumParam ? parseFloat(premiumParam) : (FALLBACK_PREMIUMS[tierKey] || 143);
 
-  // Guard: if user already created, go straight to home
+  // Guard: if onboarding is already complete, go straight to dashboard
   useEffect(() => {
     loadOnboardingState().then((done) => {
       if (done) router.replace('/(worker-tabs)' as any);
@@ -90,10 +92,16 @@ export default function ActivateScreen() {
       setLoading(true);
       setError('');
       try {
-        const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
+        // Map city to a valid zone code recognized by the backend/pricing engine
+        const CITY_ZONE_MAP: Record<string, string> = {
+          'Delhi': 'MZ-DEL-04', 'New Delhi': 'MZ-DEL-04',
+          'Mumbai': 'MZ-MUM-01', 'Bengaluru': 'MZ-BLR-02', 'Bangalore': 'MZ-BLR-02',
+          'Chennai': 'MZ-CHN-03', 'Hyderabad': 'MZ-HYD-05',
+          'Pune': 'MZ-PUN-06', 'Kolkata': 'MZ-KOL-07', 'Ahmedabad': 'MZ-AMD-08',
+        };
         const riderCity = city && city.length > 0 ? city : 'Delhi';
-        const zone = urbanCities.includes(riderCity) ? 'urban' : 'urban';
-        
+        const zone = CITY_ZONE_MAP[riderCity] || 'MZ-DEL-04';
+
         console.log('Registering rider with:', {
           name: name.trim(),
           phone: phone.trim(),
@@ -103,7 +111,7 @@ export default function ActivateScreen() {
           age: parseInt(age || '25', 10),
           workerId,
         });
-        
+
         const rider = await registerRider({
           name: name.trim(),
           phone: phone.trim(),
@@ -112,13 +120,13 @@ export default function ActivateScreen() {
           platform: platform || 'General',
           age: parseInt(age || '25', 10),
         });
-        
+
         console.log('Rider registered:', rider);
-        
+
         const tier = tierKey;
         const policyResult = await buyPolicy(rider.id, tier);
         console.log('Policy purchased:', policyResult);
-        
+
         await setOnboardingComplete(rider.id);
         router.replace('/(worker-tabs)' as any);
       } catch (e: any) {
@@ -166,74 +174,74 @@ export default function ActivateScreen() {
           <View style={styles.formCol}>
             <Text style={styles.stepTitle}>{STEP_TITLES[step - 1]}</Text>
 
-        {/* STEP 1: Name + Phone */}
-        {step === 1 && (
-          <View style={styles.stepContent}>
-            <View style={styles.floatField}>
-              <Text style={styles.floatLabel}>Your full name</Text>
-              <TextInput
-                style={styles.floatInput}
-                placeholder="Enter your name"
-                placeholderTextColor="#AAA"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            <View style={styles.floatField}>
-              <Text style={styles.floatLabel}>Enter mobile number</Text>
-              <View style={styles.phoneRow}>
-                <View style={styles.countryCode}>
-                  <Text style={styles.countryFlag}>🇮🇳</Text>
-                  <ChevronDown size={13} color="#555" />
-                  <Text style={styles.countryDial}>+91</Text>
+            {/* STEP 1: Name + Phone */}
+            {step === 1 && (
+              <View style={styles.stepContent}>
+                <View style={styles.floatField}>
+                  <Text style={styles.floatLabel}>Your full name</Text>
+                  <TextInput
+                    style={styles.floatInput}
+                    placeholder="Enter your name"
+                    placeholderTextColor="#AAA"
+                    value={name}
+                    onChangeText={setName}
+                  />
                 </View>
-                <TextInput
-                  style={[styles.floatInput, { flex: 1, borderWidth: 0 }]}
-                  placeholder="Mobile number"
-                  placeholderTextColor="#AAA"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={phone}
-                  onChangeText={setPhone}
-                />
-                {phone.length >= 10 && <Check size={18} color="#00A25B" />}
+
+                <View style={styles.floatField}>
+                  <Text style={styles.floatLabel}>Enter mobile number</Text>
+                  <View style={styles.phoneRow}>
+                    <View style={styles.countryCode}>
+                      <Text style={styles.countryFlag}>🇮🇳</Text>
+                      <ChevronDown size={13} color="#555" />
+                      <Text style={styles.countryDial}>+91</Text>
+                    </View>
+                    <TextInput
+                      style={[styles.floatInput, { flex: 1, borderWidth: 0 }]}
+                      placeholder="Mobile number"
+                      placeholderTextColor="#AAA"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      value={phone}
+                      onChangeText={setPhone}
+                    />
+                    {phone.length >= 10 && <Check size={18} color="#00A25B" />}
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
-        )}
+            )}
 
-        {/* STEP 2: Auto-Payment Setup */}
-        {step === 2 && (
-          <View style={styles.stepContent}>
-            <View style={styles.setupCard}>
-              <Shield size={32} color="#00A25B" />
-              <Text style={styles.setupTitle}>Let's set up auto-payment</Text>
-              <Text style={styles.setupSub}>Your premiums will be automatically deducted every month from your chosen UPI app</Text>
-            </View>
+            {/* STEP 2: Auto-Payment Setup */}
+            {step === 2 && (
+              <View style={styles.stepContent}>
+                <View style={styles.setupCard}>
+                  <Shield size={32} color="#00A25B" />
+                  <Text style={styles.setupTitle}>Let's set up auto-payment</Text>
+                  <Text style={styles.setupSub}>Your premiums will be automatically deducted every month from your chosen UPI app</Text>
+                </View>
 
-            <Text style={styles.sectionLabel}>Select UPI App for Auto-Payment</Text>
-            <View style={styles.upiGrid}>
-              {MOCK_UPI_IDS.map((u) => (
-                <TouchableOpacity
-                  key={u.id}
-                  style={[styles.upiCard, selectedUpi === u.id && styles.upiCardSel]}
-                  onPress={() => setSelectedUpi(u.id)}
-                >
-                  <Text style={styles.upiEmoji}>{u.icon}</Text>
-                  <Text style={styles.upiName}>{u.name}</Text>
-                  <Text style={styles.upiId}>{u.upiId}</Text>
-                  {selectedUpi === u.id && (
-                    <View style={styles.upiCheck}><Check size={12} color="#00529B" /></View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+                <Text style={styles.sectionLabel}>Select UPI App for Auto-Payment</Text>
+                <View style={styles.upiGrid}>
+                  {MOCK_UPI_IDS.map((u) => (
+                    <TouchableOpacity
+                      key={u.id}
+                      style={[styles.upiCard, selectedUpi === u.id && styles.upiCardSel]}
+                      onPress={() => setSelectedUpi(u.id)}
+                    >
+                      <Text style={styles.upiEmoji}>{u.icon}</Text>
+                      <Text style={styles.upiName}>{u.name}</Text>
+                      <Text style={styles.upiId}>{u.upiId}</Text>
+                      {selectedUpi === u.id && (
+                        <View style={styles.upiCheck}><Check size={12} color="#00529B" /></View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
-        {/* STEP 3: Payment Confirmation */}
-        {step === 3 && (
+            {/* STEP 3: Payment Confirmation */}
+            {step === 3 && (
               <View style={styles.stepContent}>
                 {/* Plan summary */}
                 <View style={styles.planSummaryCard}>
