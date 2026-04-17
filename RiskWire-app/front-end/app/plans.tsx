@@ -1,51 +1,75 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Check, ChevronDown, BriefcaseMedical } from 'lucide-react-native';
+import { ArrowLeft, Shield, Umbrella, Flame, Check, Zap } from 'lucide-react-native';
+import { getDynamicPricing } from '@/utils/api';
 
-const PLANS = [
-  {
-    id: 'bupa',
-    insurer: 'Niva Bupa Health Insurance',
-    logoText: 'niva bupa',
-    logoColor: '#0066CC',
-    name: 'ReAssure 3.0 Elite',
-    hospitals: 225,
-    features: ['Single Private AC room', '₹ 5 Lakh Renewal bonus', 'Unlimited Restoration of cover'],
-    cover: '₹5 Lakh',
-    monthly: '₹498',
-    annually: '₹5,972',
-    discount: 'Inclusive of 5% online discount *'
+const PLAN_META: Record<string, { name: string; icon: any; color: string; bgColor: string; borderColor: string; features: string[] }> = {
+  basic: {
+    name: 'Heat Shield Basic',
+    icon: Shield,
+    color: '#059669',
+    bgColor: '#ECFDF5',
+    borderColor: '#A5D6A7',
+    features: ['Heat trigger protection', 'Single zone coverage', 'Instant payouts', '24/7 claim support'],
   },
-  {
-    id: 'hdfc',
-    insurer: 'HDFC ERGO',
-    logoText: 'HDFC ERGO',
-    logoColor: '#D32F2F',
-    name: 'Optima Select',
-    hospitals: 218,
-    features: ['Guaranteed 2X increase in cover amount after 4 renewals', 'Single pvt AC Room', '₹1.25 lakh Renewal Bonus', 'Unlimited Restoration of cover'],
-    cover: '₹5 Lakh',
-    monthly: '₹524',
-    annually: '₹6,283',
-    discount: 'Inclusive of 5% online discount *'
+  standard: {
+    name: 'Rain Guard Plus',
+    icon: Umbrella,
+    color: '#0066CC',
+    bgColor: '#EFF6FF',
+    borderColor: '#93C5FD',
+    features: ['Heat + Rain triggers', 'Multi-zone coverage', 'Priority support', 'Hospitalization benefit'],
   },
-  {
-    id: 'icici',
-    insurer: 'ICICI Lombard',
-    logoText: 'ICICI Lombard',
-    logoColor: '#E65100',
-    name: 'Elevate',
-    hospitals: 134,
-    features: ['Enjoy comprehensive coverage with industry first OPD rider with no sub-limits', 'Single pvt AC Room', '₹1 lakh No Claim Bonus', 'Unlimited Restoration of cover'],
-    cover: '₹5 Lakh',
-    monthly: '₹499',
-    annually: '₹5,981',
-  }
-];
+  pro: {
+    name: 'Heat Shield Pro',
+    icon: Flame,
+    color: '#D97706',
+    bgColor: '#FFFBEB',
+    borderColor: '#FCD34D',
+    features: ['All weather triggers', 'Emergency assistance', 'Max coverage', 'Family accident benefit', 'Zero waiting period'],
+  },
+};
 
 export default function PlansScreen() {
   const { city, platform, age, workerId } = useLocalSearchParams<{ city: string; platform: string; age: string; workerId: string }>();
-  
+
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [payouts, setPayouts] = useState<Record<string, number>>({});
+  const [riskMultiplier, setRiskMultiplier] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    getDynamicPricing('MZ-DEL-04')
+      .then(data => {
+        if (data.plans) {
+          const p: Record<string, number> = {};
+          const po: Record<string, number> = {};
+          for (const [tier, detail] of Object.entries(data.plans)) {
+            p[tier] = (detail as any).premium;
+            po[tier] = (detail as any).daily_payout;
+          }
+          setPrices(p);
+          setPayouts(po);
+        }
+        if (data.risk_multiplier) setRiskMultiplier(data.risk_multiplier);
+      })
+      .catch(err => {
+        console.warn('Oracle pricing fetch failed, using fallbacks:', err);
+        setPrices({ basic: 25, standard: 50, pro: 100 });
+        setPayouts({ basic: 300, standard: 500, pro: 1000 });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleActivate = (tier: string) => {
+    router.push({
+      pathname: '/activate',
+      params: { plan: tier, city, platform, age, workerId },
+    } as any);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -53,95 +77,101 @@ export default function PlansScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ArrowLeft size={24} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Health Insurance Plans</Text>
+        <Text style={styles.headerTitle}>RiskWire Insurance Plans</Text>
+      </View>
+
+      {/* Risk Banner */}
+      <View style={styles.riskBanner}>
+        <Zap size={14} color="#FFF" />
+        <Text style={styles.riskBannerText}>
+          Live Risk Multiplier: {riskMultiplier}x · ML-powered dynamic pricing
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {PLANS.map((plan, index) => (
-          <View key={plan.id} style={styles.cardWrapper}>
-             <View style={styles.card}>
-               
-               <View style={styles.topSection}>
-                 <View style={styles.leftCol}>
-                   <View style={styles.logoRow}>
-                      <View style={[styles.logoBox, { borderColor: plan.logoColor }]}>
-                        <Text style={[styles.logoText, { color: plan.logoColor }]}>{plan.logoText}</Text>
-                      </View>
-                      <View>
-                        <Text style={styles.planName}>{plan.name}</Text>
-                        <View style={styles.hospitalRow}>
-                          <BriefcaseMedical size={12} color="#00A25B" />
-                          <Text style={styles.hospitalText}>
-                            <Text style={styles.hospitalBold}>{plan.hospitals}</Text> Cashless hospitals. <Text style={styles.hospitalLink}>View list ›</Text>
-                          </Text>
-                        </View>
-                      </View>
-                   </View>
-                   
-                   <View style={styles.featuresList}>
-                     {plan.features.map((f, i) => (
-                       <View key={i} style={styles.featureRow}>
-                         {i === 0 && plan.id !== 'bupa' ? (
-                           <Text style={styles.featureHeart}>❤️</Text>
-                         ) : (
-                           <Check size={14} color="#00A25B" />
-                         )}
-                         <Text style={styles.featureText}>{f}</Text>
-                       </View>
-                     ))}
-                   </View>
-                   
-                   <TouchableOpacity>
-                     <Text style={styles.viewFeaturesLink}>View all features ›</Text>
-                   </TouchableOpacity>
-                 </View>
-                 
-                 <View style={styles.rightCol}>
-                   <View style={styles.pricingGrid}>
-                     <View>
-                       <Text style={styles.pricingLabel}>Cover amount</Text>
-                       <Text style={styles.coverValue}>{plan.cover}</Text>
-                     </View>
-                     <View>
-                       <Text style={styles.pricingLabel}>Starting from</Text>
-                       <Text style={styles.monthlyValue}>{plan.monthly}<Text style={styles.monthlyUnit}>/month</Text></Text>
-                       <Text style={styles.annuallyValue}>{plan.annually} annually</Text>
-                     </View>
-                   </View>
-                   
-                   <TouchableOpacity 
-                     style={styles.actionBtn}
-                     onPress={() => router.push({ pathname: '/activate', params: { plan: plan.name, city, platform, age, workerId } })}
-                   >
-                     <Text style={styles.actionBtnText}>Activate ›</Text>
-                   </TouchableOpacity>
-                   
-                   {plan.discount && (
-                     <Text style={styles.discountText}>% {plan.discount}</Text>
-                   )}
-                 </View>
-               </View>
-
-               <View style={styles.cardFooter}>
-                 <View style={{flex: 1}} />
-                 <TouchableOpacity style={styles.compareBtn}>
-                   <View style={styles.compareRadio} />
-                   <Text style={styles.compareText}>Add to compare</Text>
-                 </TouchableOpacity>
-               </View>
-
-             </View>
-             
-             {/* Dropdown handle below card */}
-             <View style={styles.cardHandleWrapper}>
-               <View style={styles.cardHandle}>
-                 <Text style={styles.handleText}>View {index === 0 ? '25 more' : '1 more'} plans</Text>
-                 <ChevronDown size={14} color="#00A25B" />
-               </View>
-             </View>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#0066CC" />
+            <Text style={styles.loadingText}>Fetching live prices from ML engine…</Text>
           </View>
-        ))}
-        <View style={{height: 40}} />
+        ) : (
+          Object.keys(PLAN_META).map(tier => {
+            const meta = PLAN_META[tier];
+            const Icon = meta.icon;
+            const premium = prices[tier] || 0;
+            const payout = payouts[tier] || 0;
+            const isSelected = selected === tier;
+
+            return (
+              <TouchableOpacity
+                key={tier}
+                style={[
+                  styles.card,
+                  { borderLeftColor: meta.color },
+                  isSelected && { borderColor: meta.color, backgroundColor: meta.bgColor },
+                ]}
+                onPress={() => setSelected(tier)}
+                activeOpacity={0.85}
+              >
+                {tier === 'standard' && (
+                  <View style={[styles.popularBadge, { backgroundColor: meta.color }]}>
+                    <Text style={styles.popularText}>⭐ Most Popular</Text>
+                  </View>
+                )}
+
+                <View style={styles.planHeader}>
+                  <View style={[styles.planIconBox, { backgroundColor: meta.bgColor }]}>
+                    <Icon size={22} color={meta.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.planName}>{meta.name}</Text>
+                    <Text style={styles.planTier}>{tier.toUpperCase()} TIER</Text>
+                  </View>
+                  <View style={styles.priceBox}>
+                    <Text style={[styles.priceText, { color: meta.color }]}>₹{premium.toFixed(0)}</Text>
+                    <Text style={styles.priceUnit}>/day</Text>
+                  </View>
+                </View>
+
+                {/* Payout highlight */}
+                <View style={[styles.payoutRow, { backgroundColor: meta.bgColor }]}>
+                  <Zap size={14} color={meta.color} />
+                  <Text style={[styles.payoutText, { color: meta.color }]}>
+                    ₹{payout}/day payout on trigger
+                  </Text>
+                </View>
+
+                {/* Features */}
+                <View style={styles.featuresList}>
+                  {meta.features.map(f => (
+                    <View key={f} style={styles.featureRow}>
+                      <Check size={14} color={meta.color} />
+                      <Text style={styles.featureText}>{f}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Activate CTA */}
+                <TouchableOpacity
+                  style={[styles.activateBtn, { backgroundColor: meta.color }]}
+                  onPress={() => handleActivate(tier)}
+                >
+                  <Text style={styles.activateBtnText}>Activate {meta.name} ›</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })
+        )}
+
+        {/* ML Info */}
+        <View style={styles.mlInfo}>
+          <Shield size={14} color="#00529B" />
+          <Text style={styles.mlInfoText}>
+            Premiums dynamically computed by RiskWire ML model · Weather + AQI data from OpenWeather API · Powered by Guidewire Cloud
+          </Text>
+        </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -149,6 +179,7 @@ export default function PlansScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FF' },
+
   header: {
     backgroundColor: '#FFFFFF',
     paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20,
@@ -157,53 +188,55 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A1A24' },
-  
-  content: { padding: 16 },
-  
-  cardWrapper: { marginBottom: 24 },
-  card: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5E9F2',
-    overflow: 'hidden',
+
+  riskBanner: {
+    backgroundColor: '#0066CC', paddingVertical: 8, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
-  topSection: { flexDirection: 'row', padding: 20, paddingBottom: 16 },
-  
-  leftCol: { flex: 6, paddingRight: 16 },
-  rightCol: { flex: 4, paddingLeft: 16, borderLeftWidth: 1, borderLeftColor: '#F0F0F0' },
-  
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
-  logoBox: { width: 70, height: 40, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 11, fontWeight: 'bold', textAlign: 'center', textTransform: 'uppercase' },
-  
-  planName: { fontSize: 18, fontWeight: '700', color: '#31446B', marginBottom: 4 },
-  hospitalRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hospitalText: { fontSize: 12, color: '#666' },
-  hospitalBold: { fontWeight: 'bold', color: '#333' },
-  hospitalLink: { color: '#00A25B', fontWeight: 'bold' },
-  
-  featuresList: { gap: 10, marginBottom: 16 },
-  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  featureHeart: { fontSize: 12 },
-  featureText: { fontSize: 12, color: '#666', flex: 1, lineHeight: 18 },
-  
-  viewFeaturesLink: { color: '#00A25B', fontSize: 12, fontWeight: 'bold' },
-  
-  pricingGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  pricingLabel: { fontSize: 11, color: '#888', marginBottom: 4 },
-  coverValue: { fontSize: 16, fontWeight: 'bold', color: '#31446B' },
-  monthlyValue: { fontSize: 16, fontWeight: 'bold', color: '#31446B' },
-  monthlyUnit: { fontSize: 12, fontWeight: 'normal' },
-  annuallyValue: { fontSize: 11, color: '#888', marginTop: 2 },
-  
-  actionBtn: { backgroundColor: '#FF5722', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-  discountText: { fontSize: 11, color: '#00A25B', textAlign: 'center' },
-  
-  cardFooter: { backgroundColor: '#F0FDF4', paddingVertical: 10, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' },
-  compareBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  compareRadio: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: '#CCC', backgroundColor: '#FFF' },
-  compareText: { fontSize: 12, color: '#666' },
-  
-  cardHandleWrapper: { alignItems: 'center', marginTop: -1, zIndex: -1 },
-  cardHandle: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E9F2', borderTopWidth: 0, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, paddingHorizontal: 20, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  handleText: { fontSize: 12, color: '#00A25B', fontWeight: '600' },
+  riskBannerText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+
+  content: { padding: 16 },
+
+  loadingBox: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { fontSize: 13, color: '#666' },
+
+  card: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E9F2',
+    borderLeftWidth: 4, marginBottom: 16, overflow: 'hidden', padding: 16,
+  },
+
+  popularBadge: {
+    alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, marginBottom: 12,
+  },
+  popularText: { fontSize: 11, color: '#FFF', fontWeight: '700' },
+
+  planHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  planIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  planName: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
+  planTier: { fontSize: 10, fontWeight: '700', color: '#999', letterSpacing: 0.8, marginTop: 2 },
+  priceBox: { flexDirection: 'row', alignItems: 'baseline' },
+  priceText: { fontSize: 24, fontWeight: '800' },
+  priceUnit: { fontSize: 12, color: '#999', fontWeight: '600' },
+
+  payoutRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginBottom: 12,
+  },
+  payoutText: { fontSize: 13, fontWeight: '700' },
+
+  featuresList: { gap: 8, marginBottom: 16 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featureText: { fontSize: 13, color: '#444' },
+
+  activateBtn: {
+    borderRadius: 10, paddingVertical: 13, alignItems: 'center',
+  },
+  activateBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+
+  mlInfo: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginTop: 8,
+  },
+  mlInfoText: { fontSize: 10, color: '#4B6B88', flex: 1, lineHeight: 16 },
 });

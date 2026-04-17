@@ -17,18 +17,17 @@ export default function RootLayout() {
     loadOnboardingState().then(() => {
       const introSeen = hasSeenIntro();
       const onboardingDone = isOnboardingComplete();
-      
+
       // Routing logic:
-      // 1. If intro NOT seen → show (tabs) pages
-      // 2. If intro seen but onboarding NOT done → show onboarding
-      // 3. If onboarding done → go directly to worker-tabs
-      if (!introSeen) {
-        router.replace('/(tabs)' as any);
-      } else if (!onboardingDone) {
-        router.replace('/onboarding' as any);
-      } else {
+      // 1. If onboarding is complete → go directly to worker-tabs (dashboard)
+      // 2. If intro seen but onboarding NOT done → show onboarding (gig worker verification)
+      // 3. Otherwise → stay on (tabs) info pages (initialRouteName handles this)
+      if (onboardingDone) {
         router.replace('/(worker-tabs)' as any);
+      } else if (introSeen) {
+        router.replace('/onboarding' as any);
       }
+      // If intro NOT seen, do nothing — (tabs) is the initialRouteName
       setReady(true);
     });
   }, []);
