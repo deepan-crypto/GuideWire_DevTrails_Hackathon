@@ -65,8 +65,9 @@ export default function ProfileTab() {
       });
       setRider(updated);
       setEditModal(false);
-    } catch { /* silently keep modal open */ }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      console.error('Failed to update rider details:', err);
+    } finally { setSaving(false); }
   };
 
   const handleChangePlan = async () => {
@@ -131,7 +132,7 @@ export default function ProfileTab() {
             { icon: MapPin, label: 'City', val: rider?.city ?? '—' },
             { icon: Briefcase, label: 'Platform', val: rider?.platform ?? '—' },
             { icon: IndianRupee, label: 'Wallet', val: `₹${rider?.walletBalance ?? 0}` },
-            { icon: FileText, label: 'Rider ID', val: rider ? `RDR-${String(rider.id).padStart(6, '0')}` : '—' },
+            { icon: FileText, label: 'Rider ID', val: rider ? `RDR-${String(rider.id).slice(-6).toUpperCase()}` : '—' },
           ].map(row => (
             <View key={row.label} style={styles.detailRow}>
               <View style={styles.detailIconBox}><row.icon size={15} color={PB_NAVY} /></View>

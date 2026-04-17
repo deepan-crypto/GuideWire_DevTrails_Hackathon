@@ -18,11 +18,13 @@ router.post('/register', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const riderId = req.params.id;
+    const rider = await insuranceService.getRider(riderId);
     res.json(insuranceService.formatRider(rider));
   } catch (err) {
     res.status(404).json({ error: err.message });
   }
 });
+
 
 // PUT /api/v1/rider/:id
 router.put('/:id', async (req, res) => {

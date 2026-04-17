@@ -16,7 +16,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface Rider {
-  id: number;
+  id: string | number;
   name: string;
   phone: string;
   city: string;
