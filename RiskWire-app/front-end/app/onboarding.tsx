@@ -16,7 +16,8 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown, Search, Phone, User, X, Clock, CheckCircle, AlertCircle, Shield, Camera } from 'lucide-react-native';
-import { isOnboardingComplete, loadOnboardingState } from '@/utils/onboardingState';
+import { isOnboardingComplete, loadOnboardingState, setOnboardingComplete } from '@/utils/onboardingState';
+import { registerRider, buyPolicy } from '@/utils/api';
 
 const AGES = Array.from({ length: 63 }, (_, i) => `${i + 18}`);
 
@@ -63,6 +64,7 @@ export default function OnboardingScreen() {
   const [city, setCity] = useState('');
   const [citySearch, setCitySearch] = useState('');
   const [showAgePicker, setShowAgePicker] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // If already onboarded, skip to home
   useEffect(() => {
@@ -97,15 +99,39 @@ export default function OnboardingScreen() {
     setVerifying(false);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Done with onboarding — go to plans page (passing city & platform & age info)
-      router.push({
-        pathname: '/plans' as any,
-        params: { city, platform, age, workerId },
-      });
+      // Done with onboarding — register rider and go directly to app
+      try {
+        setLoading(true);
+        const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
+        const zone = urbanCities.includes(city) ? 'urban' : 'urban';
+        
+        // Register rider directly
+        const rider = await registerRider({
+          name: 'Worker',
+          phone: '9999999999',
+          city,
+          zone,
+          platform,
+          age: parseInt(age || '25', 10),
+        });
+        
+        // Activate basic policy automatically
+        await buyPolicy(rider.id, 'basic');
+        
+        // Mark onboarding as complete
+        await setOnboardingComplete(rider.id);
+        
+        // Go to app
+        router.replace('/(worker-tabs)' as any);
+      } catch (err) {
+        console.error('Registration error:', err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

@@ -35,6 +35,21 @@ export interface PayoutLog {
   timestamp: string; // ISO datetime
 }
 
+export interface Notification {
+  _id: string;
+  rider_id: string;
+  type: 'WEATHER_PAYOUT' | 'POLICY_ACTIVE' | 'CLAIM_APPROVED' | 'INFO';
+  title: string;
+  message: string;
+  amount?: number;
+  trigger_type?: string;
+  claim_number?: string;
+  zone?: string;
+  is_read: boolean;
+  created_at: string;
+  read_at?: string;
+}
+
 export interface PlanDetail {
   premium: number;
   daily_payout: number;
@@ -80,6 +95,16 @@ export async function updateRider(riderId: number, updates: Partial<Rider>): Pro
 /** Get payout history for a rider, newest first. */
 export async function getPayouts(riderId: number): Promise<PayoutLog[]> {
   return request<PayoutLog[]>(`/rider/${riderId}/payouts`);
+}
+
+/** Get notifications for a rider. */
+export async function getNotifications(riderId: number, limit: number = 20): Promise<Notification[]> {
+  return request<Notification[]>(`/rider/${riderId}/notifications?limit=${limit}`);
+}
+
+/** Mark a notification as read. */
+export async function markNotificationAsRead(riderId: number, notificationId: string): Promise<Notification> {
+  return request<Notification>(`/rider/${riderId}/notifications/${notificationId}/read`, { method: 'POST' });
 }
 
 // ── Insurance endpoints ────────────────────────────────────────────
