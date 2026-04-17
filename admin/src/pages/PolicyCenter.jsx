@@ -110,25 +110,33 @@ export default function PolicyCenter() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        {[
-          { label: 'Total Active Policies', value: '1,247', change: '+12%', positive: true },
-          { label: 'Avg. AI Premium', value: '₹154/day', change: '+8%', positive: false },
-          { label: 'High-Risk Zones', value: '5', change: '+2', positive: false },
-          { label: 'Coverage Utilization', value: '94.2%', change: '+1.4%', positive: true },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white rounded border border-gw-border p-3">
-            <div className="text-[10.5px] text-gw-text-muted font-medium uppercase tracking-wider">{stat.label}</div>
-            <div className="flex items-end gap-2 mt-1">
-              <span className="text-[20px] font-bold text-gw-text leading-tight">{stat.value}</span>
-              <span className={`text-[10.5px] font-semibold mb-0.5 ${stat.positive ? 'text-green-600' : 'text-amber-600'}`}>
-                {stat.change}
-              </span>
-            </div>
+      {/* Stats row — computed from live data */}
+      {(() => {
+        const totalActive = policies.length
+        const premiums = policies.map(p => parseFloat(String(p.premium).replace(/[₹,]/g, '')) || 0)
+        const avgPremium = premiums.length > 0 ? Math.round(premiums.reduce((a, b) => a + b, 0) / premiums.length) : 0
+        const highRiskZones = new Set(policies.filter(p => p.riskScore >= 60).map(p => p.zone)).size
+        const activeCount = policies.filter(p => p.status === 'Active' || p.status === 'active').length
+        const utilization = totalActive > 0 ? ((activeCount / totalActive) * 100).toFixed(1) : '0.0'
+        const stats = [
+          { label: 'Total Active Policies', value: totalActive.toLocaleString() },
+          { label: 'Avg. AI Premium', value: `₹${avgPremium}/day` },
+          { label: 'High-Risk Zones', value: String(highRiskZones) },
+          { label: 'Coverage Utilization', value: `${utilization}%` },
+        ]
+        return (
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {stats.map((stat, i) => (
+              <div key={i} className="bg-white rounded border border-gw-border p-3">
+                <div className="text-[10.5px] text-gw-text-muted font-medium uppercase tracking-wider">{stat.label}</div>
+                <div className="flex items-end gap-2 mt-1">
+                  <span className="text-[20px] font-bold text-gw-text leading-tight">{stat.value}</span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       {/* Table card */}
       <div className="bg-white rounded border border-gw-border">

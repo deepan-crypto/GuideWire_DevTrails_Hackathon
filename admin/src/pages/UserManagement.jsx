@@ -102,7 +102,12 @@ export default function UserManagement() {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [loading, setLoading] = useState(true)
   const [zones, setZones] = useState([])
-  const [adminUsers, setAdminUsers] = useState([])
+  const [adminUsers, setAdminUsers] = useState([
+    { id: 'admin-001', name: 'Admin', email: 'admin@riskwire.io', role: 'Super Admin', status: 'Active', lastLogin: new Date().toISOString() },
+    { id: 'admin-002', name: 'PolicyCenter', email: 'policycenter@riskwire.io', role: 'Policy Manager', status: 'Active', lastLogin: new Date().toISOString() },
+    { id: 'admin-003', name: 'BillingCenter', email: 'billingcenter@riskwire.io', role: 'Billing Ops', status: 'Active', lastLogin: new Date().toISOString() },
+    { id: 'admin-004', name: 'ClaimCenter', email: 'claimcenter@riskwire.io', role: 'Claims Manager', status: 'Active', lastLogin: new Date().toISOString() },
+  ])
   const [auditLog, setAuditLog] = useState([])
   const PAGE_SIZE = 5
   const [page, setPage] = useState(1)
@@ -382,9 +387,12 @@ export default function UserManagement() {
                         {u.role === 'Claims Manager' && ['Read', 'Write'].map(p => (
                           <span key={p} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[9px] font-semibold">{p}</span>
                         ))}
-                        {u.role === 'System' && (
-                          <span className="px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded text-[9px] font-semibold">Automated</span>
-                        )}
+                        {u.role === 'Policy Manager' && ['Read', 'Write'].map(p => (
+                          <span key={p} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold">{p}</span>
+                        ))}
+                        {u.role === 'Billing Ops' && ['Read', 'Write'].map(p => (
+                          <span key={p} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-semibold">{p}</span>
+                        ))}
                       </div>
                     </td>
                   </tr>
@@ -396,7 +404,7 @@ export default function UserManagement() {
           <div className="m-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-start gap-2.5">
             <Shield className="w-4 h-4 text-gw-blue mt-0.5 shrink-0" />
             <div className="text-[11px] text-blue-800">
-              <span className="font-semibold">RBAC Policy:</span> Role-based access control is enforced. Super Admin has full system access. Claims Managers can view and process claims but cannot modify system configuration. System accounts are automated and cannot be used for manual login.
+              <span className="font-semibold">RBAC Policy:</span> Role-based access control is enforced. Super Admin has full system access. PolicyCenter manages policy lifecycle. BillingCenter handles premium collection and invoicing. ClaimCenter processes and adjudicates claims.
             </div>
           </div>
         </div>
