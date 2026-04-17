@@ -2,40 +2,28 @@ import { useState, useEffect, useCallback } from 'react';
 import { Tabs, useFocusEffect, router } from 'expo-router';
 import { Hop as Home, UserCircle, Users, FileText, Shield } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
-import { loadOnboardingState, isOnboardingComplete } from '@/utils/onboardingState';
+import { hasSeenIntro } from '@/utils/onboardingState';
 
 export default function TabLayout() {
-  const [userCreated, setUserCreated] = useState(isOnboardingComplete());
+  const [showTabs, setShowTabs] = useState(true);
 
-  // Load from storage on mount
+  // Load intro status on mount
   useEffect(() => {
-    loadOnboardingState().then((done) => {
-      setUserCreated(done);
-      // If already created, leave tabs immediately → go to dashboard
-      if (done) {
-        router.replace('/dashboard');
-      }
-    });
+    setShowTabs(true);
   }, []);
 
-  // Re-check on focus (e.g., returning from activate)
+  // Keep tabs visible while user browses
   useFocusEffect(
     useCallback(() => {
-      const done = isOnboardingComplete();
-      setUserCreated(done);
-      if (done) {
-        router.replace('/dashboard');
-      }
+      setShowTabs(true);
     }, [])
   );
 
-  // When user is created we redirect away, so render nothing meaningful.
-  // href: null hides the tab. Show all tabs only for new (pre-activation) users.
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: userCreated ? styles.tabBarHidden : styles.tabBar,
+        tabBarStyle: styles.tabBar,
         tabBarActiveTintColor: '#0066CC',
         tabBarInactiveTintColor: '#999999',
         tabBarLabelStyle: styles.tabLabel,
@@ -46,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home color={color} size={24} />,
-          href: userCreated ? null : '/',
+          href: '/',
         }}
       />
       <Tabs.Screen
@@ -54,7 +42,7 @@ export default function TabLayout() {
         options={{
           title: 'Expert',
           tabBarIcon: ({ color }) => <Users color={color} size={24} />,
-          href: userCreated ? null : '/expert',
+          href: '/expert',
         }}
       />
       <Tabs.Screen
@@ -62,7 +50,7 @@ export default function TabLayout() {
         options={{
           title: 'Products',
           tabBarIcon: ({ color }) => <Shield color={color} size={24} />,
-          href: userCreated ? null : '/products',
+          href: '/products',
         }}
       />
       <Tabs.Screen
@@ -70,7 +58,7 @@ export default function TabLayout() {
         options={{
           title: 'Understand',
           tabBarIcon: ({ color }) => <FileText color={color} size={24} />,
-          href: userCreated ? null : '/understand',
+          href: '/understand',
         }}
       />
       <Tabs.Screen
@@ -78,7 +66,6 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <UserCircle color={color} size={24} />,
-          // Profile tab hidden; profile is accessed from Dashboard as a stack screen
           href: null,
         }}
       />

@@ -114,6 +114,21 @@ export async function getQuote(riderId: number): Promise<QuoteResponse> {
   return request<QuoteResponse>(`/insurance/quote?riderId=${riderId}`);
 }
 
+/** Get dynamic pricing from Oracle for a specific zone (used on home/info pages). */
+export async function getDynamicPricing(zone: string = 'MZ-DEL-04'): Promise<{
+  zone: string;
+  zone_name: string;
+  risk_multiplier: number;
+  plans: QuoteResponse;
+}> {
+  const ORACLE_URL = process.env.EXPO_PUBLIC_ORACLE_URL || 'https://guidewire-devtrails-hackathon.onrender.com';
+  const res = await fetch(`${ORACLE_URL}/api/v1/pricing/forecast-quote?zone=${zone}`);
+  if (!res.ok) {
+    throw new Error(`Oracle error ${res.status}`);
+  }
+  return res.json();
+}
+
 /** Purchase a policy tier (basic | standard | pro). Returns updated Rider. */
 export async function buyPolicy(riderId: number, tier: string): Promise<Rider> {
   return request<Rider>(`/insurance/buy?riderId=${riderId}&tier=${tier}`, { method: 'POST' });

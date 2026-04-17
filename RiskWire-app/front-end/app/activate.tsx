@@ -86,26 +86,44 @@ export default function ActivateScreen() {
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Final: create account with data from onboarding + activation
+      // Final: create account with verified data from onboarding + activation
       setLoading(true);
       setError('');
       try {
         const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
-        const zone = city && urbanCities.includes(city) ? 'urban' : 'urban';
+        const riderCity = city && city.length > 0 ? city : 'Delhi';
+        const zone = urbanCities.includes(riderCity) ? 'urban' : 'urban';
+        
+        console.log('Registering rider with:', {
+          name: name.trim(),
+          phone: phone.trim(),
+          city: riderCity,
+          zone,
+          platform,
+          age: parseInt(age || '25', 10),
+          workerId,
+        });
+        
         const rider = await registerRider({
           name: name.trim(),
           phone: phone.trim(),
-          city: city || 'Delhi',
+          city: riderCity,
           zone,
           platform: platform || 'General',
           age: parseInt(age || '25', 10),
         });
+        
+        console.log('Rider registered:', rider);
+        
         const tier = tierKey;
-        await buyPolicy(rider.id, tier);
+        const policyResult = await buyPolicy(rider.id, tier);
+        console.log('Policy purchased:', policyResult);
+        
         await setOnboardingComplete(rider.id);
         router.replace('/(worker-tabs)' as any);
       } catch (e: any) {
-        setError('Could not connect to server. Please try again.');
+        console.error('Activation error:', e);
+        setError(e.message || 'Could not connect to server. Please try again.');
       } finally {
         setLoading(false);
       }

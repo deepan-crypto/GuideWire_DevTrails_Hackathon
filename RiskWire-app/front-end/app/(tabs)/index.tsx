@@ -4,22 +4,24 @@ import {
   Shield, Umbrella, Flame, Zap, Star, Phone, ArrowRight, TrendingUp, CloudRain, Thermometer,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { getQuote } from '@/utils/api';
+import { getDynamicPricing } from '@/utils/api';
 import { setIntroSeen } from '@/utils/onboardingState';
 
-const PLANS = [
+// Plan tier mapping - will be populated from Oracle
+const PLAN_TIERS = [
   { id: 'basic', name: 'Heat Shield Basic', icon: Shield, color: '#059669', bg: '#ECFDF5', accent: '#D1FAE5', tier: 'basic' },
   { id: 'standard', name: 'Rain Guard Plus', icon: Umbrella, color: '#0066CC', bg: '#EFF6FF', accent: '#DBEAFE', tier: 'standard' },
   { id: 'pro', name: 'Heat Shield Pro', icon: Flame, color: '#D97706', bg: '#FFFBEB', accent: '#FEF3C7', tier: 'pro' },
 ];
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  basic: ['Heat trigger protection', '₹300/day payout', 'Single zone coverage'],
-  standard: ['Heat + Rain triggers', '₹500/day payout', 'Multi-zone coverage'],
-  pro: ['All weather triggers', '₹1000/day payout', 'Priority payouts'],
+  basic: ['Heat trigger protection', 'Single zone coverage', 'Instant payouts'],
+  standard: ['Heat + Rain triggers', 'Multi-zone coverage', 'Priority support'],
+  pro: ['All weather triggers', 'Emergency assistance', 'Max coverage'],
 };
 
 const FALLBACK_PRICES: Record<string, number> = { basic: 95, standard: 143, pro: 218 };
+const FALLBACK_PAYOUTS: Record<string, number> = { basic: 300, standard: 500, pro: 1000 };
 
 const TRUST = [
   { val: '10K+', label: 'Gig Workers' },
@@ -29,22 +31,46 @@ const TRUST = [
 
 export default function HomeScreen() {
   const [prices, setPrices] = useState<Record<string, number>>(FALLBACK_PRICES);
+  const [payouts, setPayouts] = useState<Record<string, number>>(FALLBACK_PAYOUTS);
+  const [riskMultiplier, setRiskMultiplier] = useState(1);
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
 
   useEffect(() => {
-    // Fetch live prices from the pricing engine
-    getQuote(1)
+    // Fetch dynamic pricing from Oracle pricing engine
+    getDynamicPricing('MZ-DEL-04')
       .then(data => {
-        const p: Record<string, number> = {};
-        for (const [tier, detail] of Object.entries(data)) {
-          p[tier] = (detail as any).premium;
+        if (data.plans) {
+          const p: Record<string, number> = {};
+          const po: Record<string, number> = {};
+          for (const [tier, detail] of Object.entries(data.plans)) {
+            p[tier] = (detail as any).premium;
+            po[tier] = (detail as any).daily_payout;
+          }
+          if (Object.keys(p).length > 0) setPrices(p);
+          if (Object.keys(po).length > 0) setPayouts(po);
         }
-        if (Object.keys(p).length > 0) setPrices(p);
+        if (data.risk_multiplier) {
+          setRiskMultiplier(data.risk_multiplier);
+        }
       })
-      .catch(() => { })
+      .catch(err => {
+        console.warn('Oracle fetch failed, using fallbacks:', err);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  const handlePlanSelect = async (tier: string) => {
+    try {
+      setTransitioning(true);
+      await setIntroSeen();
+      // Route to onboarding with selected plan tier
+      router.push({ pathname: '/onboarding', params: { selectedTier: tier } } as any);
+    } catch (err) {
+      console.error('Failed to select plan:', err);
+      setTransitioning(false);
+    }
+  };
 
   const handleContinueToVerification = async () => {
     try {
@@ -124,16 +150,16 @@ export default function HomeScreen() {
         {loading ? (
           <ActivityIndicator size="large" color="#0066CC" style={{ paddingVertical: 30 }} />
         ) : (
-          PLANS.map(plan => {
+          PLAN_TIERS.map(plan => {
             const price = prices[plan.tier] || FALLBACK_PRICES[plan.tier];
-            const features = PLAN_FEATURES[plan.tier];
+            const dailyPayout = payouts[plan.tier] || FALLBACK_PAYOUTS[plan.tier];
             const Icon = plan.icon;
             return (
               <TouchableOpacity
                 key={plan.id}
                 style={[styles.planCard, { borderLeftColor: plan.color }]}
+                onPress={() => handlePlanSelect(plan.tier)}
                 activeOpacity={0.85}
-                disabled={true}
               >
                 <View style={styles.planHeader}>
                   <View style={[styles.planIconBox, { backgroundColor: plan.bg }]}>
@@ -149,7 +175,11 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <View style={styles.planFeatures}>
-                  {features.map(f => (
+                  <View style={styles.planFeatureRow}>
+                    <View style={[styles.planDot, { backgroundColor: plan.color }]} />
+                    <Text style={styles.planFeatureText}>₹{dailyPayout}/day payout</Text>
+                  </View>
+                  {PLAN_FEATURES[plan.tier].map(f => (
                     <View key={f} style={styles.planFeatureRow}>
                       <View style={[styles.planDot, { backgroundColor: plan.color }]} />
                       <Text style={styles.planFeatureText}>{f}</Text>
@@ -157,7 +187,7 @@ export default function HomeScreen() {
                   ))}
                 </View>
                 <View style={[styles.planCta, { backgroundColor: plan.accent }]}>
-                  <Text style={[styles.planCtaText, { color: plan.color }]}>Activate Plan</Text>
+                  <Text style={[styles.planCtaText, { color: plan.color }]}>Select & Verify</Text>
                   <ArrowRight size={14} color={plan.color} />
                 </View>
               </TouchableOpacity>

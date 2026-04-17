@@ -13,7 +13,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown, Search, Phone, User, X, Clock, CheckCircle, AlertCircle, Shield, Camera } from 'lucide-react-native';
 import { isOnboardingComplete, loadOnboardingState, setOnboardingComplete } from '@/utils/onboardingState';
@@ -54,6 +54,8 @@ const STEP_TITLES = [
 ];
 
 export default function OnboardingScreen() {
+  const { selectedTier } = useLocalSearchParams<{ selectedTier?: string }>();
+  
   const [step, setStep] = useState(1);
   const [platform, setPlatform] = useState('');
   const [workerId, setWorkerId] = useState('');
@@ -103,32 +105,23 @@ export default function OnboardingScreen() {
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     } else {
-      // Done with onboarding — register rider and go directly to app
+      // Done with onboarding — go to activate screen with verification data
       try {
         setLoading(true);
-        const urbanCities = ['Chennai', 'Delhi', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
-        const zone = urbanCities.includes(city) ? 'urban' : 'urban';
         
-        // Register rider directly
-        const rider = await registerRider({
-          name: 'Worker',
-          phone: '9999999999',
-          city,
-          zone,
-          platform,
-          age: parseInt(age || '25', 10),
-        });
-        
-        // Activate basic policy automatically
-        await buyPolicy(rider.id, 'basic');
-        
-        // Mark onboarding as complete
-        await setOnboardingComplete(rider.id);
-        
-        // Go to app
-        router.replace('/(worker-tabs)' as any);
+        // Navigate to activate screen with all verification data
+        router.push({
+          pathname: '/activate',
+          params: {
+            plan: selectedTier || 'basic',
+            platform,
+            workerId,
+            age,
+            city,
+          },
+        } as any);
       } catch (err) {
-        console.error('Registration error:', err);
+        console.error('Navigation error:', err);
       } finally {
         setLoading(false);
       }
