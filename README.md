@@ -28,7 +28,7 @@
 
 Admin panel link : https://guide-wire-dev-trails-hackathon.vercel.app/
 
-Pitch dek pdf :  https://drive.google.com/file/d/1IRuPFdx74ACWt5FTjz8LeTM6SGX5aZ5-/view?usp=drivesdk
+Pitch deck pdf :  https://drive.google.com/file/d/1IRuPFdx74ACWt5FTjz8LeTM6SGX5aZ5-/view?usp=drivesdk
 
  github link :  https://github.com/deepan-crypto/GuideWire_DevTrails_Hackathon.git  
 
