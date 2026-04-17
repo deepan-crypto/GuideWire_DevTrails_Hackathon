@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: riskwire-pricing-engine
+    env: python
+    plan: free
+    pythonVersion: 3.11
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: OWM_API_KEY
+        scope: build
+        # User should set this in Render dashboard environment variables
