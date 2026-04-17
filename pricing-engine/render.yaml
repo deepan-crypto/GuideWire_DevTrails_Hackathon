@@ -3,11 +3,10 @@ services:
     name: riskwire-pricing-engine
     env: python
     plan: free
+    rootDir: pricing-engine
     pythonVersion: 3.11.8
     buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PORT
-        value: 8000
       - key: OWM_API_KEY
         scope: build
