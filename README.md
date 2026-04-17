@@ -1,6 +1,6 @@
 # ⚡ RiskWire: AI-Powered Parametric Income Protection for India’s Gig Economy
 
-**Submission for Guidewire DEVTrails 2026 – Phase 1 (Seed)**
+**Submission for Guidewire DEVTrails 2026 – Phase 3 (SOAR)**
 
 📖 Table of Contents
 --------------------
@@ -24,7 +24,15 @@
 9.  Phase 1 to 3 Execution Roadmap
 
 
-    
+ Android  Apk Link :  https://expo.dev/accounts/deepangokul/projects/bolt-expo-nativewind/builds/bd17471f-b9ef-4bd9-ba4e-f11d4733f65f
+
+Admin panel link : https://guide-wire-dev-trails-hackathon.vercel.app/
+
+Pitch dek pdf :  https://drive.google.com/file/d/1IRuPFdx74ACWt5FTjz8LeTM6SGX5aZ5-/view?usp=drivesdk
+
+ github link :  https://github.com/deepan-crypto/GuideWire_DevTrails_Hackathon.git  
+
+ 
 
 1\. The Problem Statement
 -------------------------
