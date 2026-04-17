@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { loadOnboardingState, isOnboardingComplete, hasSeenIntro } from '@/utils/onboardingState';
+import { loadOnboardingState, isOnboardingComplete, hasSeenIntro, clearOnboardingState } from '@/utils/onboardingState';
 import { router } from 'expo-router';
 
 export const unstable_settings = {
@@ -15,19 +15,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadOnboardingState().then(() => {
-      const introSeen = hasSeenIntro();
       const onboardingDone = isOnboardingComplete();
 
       // Routing logic:
-      // 1. If onboarding is complete → go directly to worker-tabs (dashboard)
-      // 2. If intro seen but onboarding NOT done → show onboarding (gig worker verification)
-      // 3. Otherwise → stay on (tabs) info pages (initialRouteName handles this)
+      // 1. If onboarding is complete → go to worker dashboard
+      // 2. Otherwise → stay on (tabs) info pages (the initialRouteName)
+      //    The (tabs) pages handle routing to onboarding when user is ready
       if (onboardingDone) {
         router.replace('/(worker-tabs)' as any);
-      } else if (introSeen) {
-        router.replace('/onboarding' as any);
       }
-      // If intro NOT seen, do nothing — (tabs) is the initialRouteName
+      // Default: stay on (tabs) — the 4 info pages (Home, Expert, Products, Understand)
       setReady(true);
     });
   }, []);
@@ -35,8 +32,8 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(worker-tabs)" />
         <Stack.Screen name="plans" />
         <Stack.Screen name="activate" />
@@ -47,4 +44,3 @@ export default function RootLayout() {
     </>
   );
 }
-
