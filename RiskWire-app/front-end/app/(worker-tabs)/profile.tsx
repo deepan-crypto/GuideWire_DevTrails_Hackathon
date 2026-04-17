@@ -6,29 +6,30 @@ import {
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { getCachedRiderId, clearOnboardingState } from '@/utils/onboardingState';
-import { getRider, updateRider, buyPolicy, Rider } from '@/utils/api';
+import { getRider, updateRider, buyPolicy, getQuote, Rider } from '@/utils/api';
 
-const PB_NAVY   = '#0F4C81';
-const PB_GREEN  = '#00C37B';
+const PB_NAVY = '#0F4C81';
+const PB_GREEN = '#00C37B';
 const PB_ORANGE = '#FF5722';
 
 const PLANS = [
-  { id: 'basic',    name: 'Basic',    color: '#4CAF50', premium: '₹14/wk', cover: '₹300/day' },
+  { id: 'basic', name: 'Basic', color: '#4CAF50', premium: '₹14/wk', cover: '₹300/day' },
   { id: 'standard', name: 'Standard', color: '#0066CC', premium: '₹24/wk', cover: '₹500/day' },
-  { id: 'pro',      name: 'Pro',      color: '#7B2FF7', premium: '₹45/wk', cover: '₹1,000/day' },
+  { id: 'pro', name: 'Pro', color: '#7B2FF7', premium: '₹45/wk', cover: '₹1,000/day' },
 ];
 
 export default function ProfileTab() {
-  const [rider, setRider]         = useState<Rider | null>(null);
-  const [loading, setLoading]     = useState(true);
+  const [rider, setRider] = useState<Rider | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(false);
   const [planModal, setPlanModal] = useState(false);
-  const [saving, setSaving]       = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [quotes, setQuotes] = useState<Record<string, { premium: number; daily_payout: number }> | null>(null);
 
   // Edit state
-  const [editName, setEditName]         = useState('');
-  const [editPhone, setEditPhone]       = useState('');
-  const [editCity, setEditCity]         = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editCity, setEditCity] = useState('');
   const [editPlatform, setEditPlatform] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('standard');
 
@@ -37,8 +38,12 @@ export default function ProfileTab() {
     try {
       const id = getCachedRiderId();
       if (id) {
-        const data = await getRider(id);
+        const [data, quoteData] = await Promise.all([
+          getRider(id),
+          getQuote(id).catch(() => null)
+        ]);
         setRider(data);
+        setQuotes(quoteData);
         setEditName(data.name || '');
         setEditPhone(data.phone || '');
         setEditCity(data.city || '');
@@ -122,11 +127,11 @@ export default function ProfileTab() {
         <View style={styles.detailsCard}>
           <Text style={styles.cardTitle}>Personal Details</Text>
           {[
-            { icon: Phone,       label: 'Mobile',    val: rider?.phone ? `+91 ${rider.phone}` : '—' },
-            { icon: MapPin,      label: 'City',      val: rider?.city ?? '—' },
-            { icon: Briefcase,   label: 'Platform',  val: rider?.platform ?? '—' },
-            { icon: IndianRupee, label: 'Wallet',    val: `₹${rider?.walletBalance ?? 0}` },
-            { icon: FileText,    label: 'Rider ID',  val: rider ? `RDR-${String(rider.id).padStart(6, '0')}` : '—' },
+            { icon: Phone, label: 'Mobile', val: rider?.phone ? `+91 ${rider.phone}` : '—' },
+            { icon: MapPin, label: 'City', val: rider?.city ?? '—' },
+            { icon: Briefcase, label: 'Platform', val: rider?.platform ?? '—' },
+            { icon: IndianRupee, label: 'Wallet', val: `₹${rider?.walletBalance ?? 0}` },
+            { icon: FileText, label: 'Rider ID', val: rider ? `RDR-${String(rider.id).padStart(6, '0')}` : '—' },
           ].map(row => (
             <View key={row.label} style={styles.detailRow}>
               <View style={styles.detailIconBox}><row.icon size={15} color={PB_NAVY} /></View>
@@ -153,7 +158,9 @@ export default function ProfileTab() {
               <Text style={[styles.currentPlanName, { color: curPlan.color }]}>
                 {rider?.policyTier ?? curPlan.name} Plan
               </Text>
-              <Text style={styles.currentPlanPremium}>{curPlan.premium} · {curPlan.cover}</Text>
+              <Text style={styles.currentPlanPremium}>
+                ₹{quotes?.[selectedPlan]?.premium ?? curPlan.premium.replace('₹', '').split('/')[0]}/wk · ₹{quotes?.[selectedPlan]?.daily_payout ?? curPlan.cover.replace('₹', '').split('/')[0]}/day
+              </Text>
             </View>
             <View style={styles.activePill}>
               <Text style={styles.activePillText}>{rider?.isPolicyActive ? 'Active' : 'Inactive'}</Text>
@@ -185,9 +192,9 @@ export default function ProfileTab() {
           </View>
           <ScrollView contentContainerStyle={styles.modalContent}>
             {[
-              { label: 'Full Name',         val: editName,     setter: setEditName,     kb: 'default' as const },
-              { label: 'Mobile Number',     val: editPhone,    setter: setEditPhone,    kb: 'phone-pad' as const },
-              { label: 'City',              val: editCity,     setter: setEditCity,     kb: 'default' as const },
+              { label: 'Full Name', val: editName, setter: setEditName, kb: 'default' as const },
+              { label: 'Mobile Number', val: editPhone, setter: setEditPhone, kb: 'phone-pad' as const },
+              { label: 'City', val: editCity, setter: setEditCity, kb: 'default' as const },
               { label: 'Delivery Platform', val: editPlatform, setter: setEditPlatform, kb: 'default' as const },
             ].map(f => (
               <View key={f.label} style={styles.inputGroup}>
@@ -233,7 +240,9 @@ export default function ProfileTab() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.planOptionName, { color: plan.color }]}>{plan.name}</Text>
-                  <Text style={styles.planOptionDetails}>{plan.premium} · {plan.cover}</Text>
+                  <Text style={styles.planOptionDetails}>
+                    ₹{quotes?.[plan.id]?.premium ?? plan.premium.replace('₹', '').split('/')[0]}/wk · ₹{quotes?.[plan.id]?.daily_payout ?? plan.cover.replace('₹', '').split('/')[0]}/day
+                  </Text>
                 </View>
                 <View style={[styles.radioBtn, selectedPlan === plan.id && { borderColor: plan.color }]}>
                   {selectedPlan === plan.id && <View style={[styles.radioDot, { backgroundColor: plan.color }]} />}

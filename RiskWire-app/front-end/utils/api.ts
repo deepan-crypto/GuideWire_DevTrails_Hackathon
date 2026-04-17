@@ -110,6 +110,11 @@ export async function markNotificationAsRead(riderId: string | number, notificat
 
 // ── Insurance endpoints ────────────────────────────────────────────
 
+/** Get pricing quote for all tiers for a rider's zone. */
+export async function getQuote(riderId: string | number): Promise<QuoteResponse> {
+  return request<QuoteResponse>(`/insurance/quote?riderId=${riderId}`);
+}
+
 /** Purchase a policy tier (basic | standard | pro). Returns updated Rider. */
 export async function buyPolicy(riderId: string | number, tier: string): Promise<Rider> {
   return request<Rider>(`/insurance/buy?riderId=${riderId}&tier=${tier}`, { method: 'POST' });
