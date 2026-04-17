@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchTriggerZones, fetchApprovalLog } from '../services/api'
 import { Thermometer, CloudRain, Zap, CheckCircle, Clock, MapPin, AlertTriangle, Radio, RefreshCw } from 'lucide-react'
+import WeatherTriggerModal from '../components/WeatherTriggerModal'
 
 function LivePulse() {
   const [visible, setVisible] = useState(true)
@@ -81,6 +82,8 @@ export default function ClaimCenter() {
   const [syncing, setSyncing] = useState(false)
   const [toast, setToast] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [isTriggering, setIsTriggering] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -108,6 +111,47 @@ export default function ClaimCenter() {
   }, [])
 
   const triggeredCount = zones.filter(z => z.triggered).length
+
+  const handleWeatherTrigger = async (data) => {
+    setIsTriggering(true)
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/admin/trigger-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zoneId: data.zone,
+          triggerType: data.triggerType,
+          amount: data.amount
+        })
+      })
+      if (response.ok) {
+        const result = await response.json()
+        setToast(`✅ Triggered payout for ${result.claimsCreated} riders in ${data.zone}`)
+        // Refresh the data
+        setTimeout(() => {
+          Promise.all([
+            fetchTriggerZones().then(d => { if (d && d.length > 0) setZones(d) }),
+            fetchApprovalLog().then(d => {
+              if (d && d.length > 0) {
+                setLiveLog(d.map(c => ({
+                  id: c.claimNumber, timestamp: c.approvedAt || c.dateOfLoss, rider: c.riderName,
+                  zone: c.zone, trigger: `${c.triggerType} trigger`, amount: `₹${c.amount}`,
+                  status: c.status, paidAt: c.approvedAt || 'Pending'
+                })))
+              }
+            })
+          ])
+        }, 1000)
+      } else {
+        setToast('❌ Failed to trigger payout')
+      }
+    } catch (err) {
+      console.error('Trigger error:', err)
+      setToast('❌ Error: ' + err.message)
+    } finally {
+      setIsTriggering(false)
+    }
+  }
 
   return (
     <div>
@@ -156,6 +200,15 @@ export default function ClaimCenter() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Force Sync'}
+          </button>
+
+          <button
+            onClick={() => setModalOpen(true)}
+            disabled={isTriggering}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded text-[11.5px] font-medium hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-60"
+          >
+            <CloudRain className="w-3.5 h-3.5" />
+            Manual Weather Trigger
           </button>
         </div>
       </div>
@@ -266,6 +319,13 @@ export default function ClaimCenter() {
           </div>
         </div>
       </div>
+
+      <WeatherTriggerModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onTrigger={handleWeatherTrigger}
+        isLoading={isTriggering}
+      />
     </div>
   )
 }
