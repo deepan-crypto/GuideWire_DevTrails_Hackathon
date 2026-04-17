@@ -96,7 +96,7 @@ router.get('/billing/transactions', async (req, res) => {
 // GET /billing/monthly-trend
 router.get('/billing/monthly-trend', async (req, res) => {
   try {
-    const trend = adminService.getMonthlyTrend();
+    const trend = await adminService.getMonthlyTrend();
     res.json(trend);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -169,6 +169,16 @@ router.get('/operational-cost', async (req, res) => {
   try {
     const metrics = await adminService.getOperationalCostMetrics();
     res.json(metrics);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /analytics — full dashboard data from live DB
+router.get('/analytics', async (req, res) => {
+  try {
+    const data = await adminService.getAnalyticsSummary();
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

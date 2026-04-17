@@ -4,17 +4,18 @@ import {
   Shield, Umbrella, Flame, Zap, Star, Phone, ArrowRight, TrendingUp, CloudRain, Thermometer,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { getQuote } from '@/utils/api';
 
 const PLANS = [
-  { id: 'basic',    name: 'Heat Shield Basic',  icon: Shield,  color: '#059669', bg: '#ECFDF5', accent: '#D1FAE5', tier: 'basic' },
-  { id: 'standard', name: 'Rain Guard Plus',     icon: Umbrella, color: '#0066CC', bg: '#EFF6FF', accent: '#DBEAFE', tier: 'standard' },
-  { id: 'pro',      name: 'Heat Shield Pro',     icon: Flame,   color: '#D97706', bg: '#FFFBEB', accent: '#FEF3C7', tier: 'pro' },
+  { id: 'basic', name: 'Heat Shield Basic', icon: Shield, color: '#059669', bg: '#ECFDF5', accent: '#D1FAE5', tier: 'basic' },
+  { id: 'standard', name: 'Rain Guard Plus', icon: Umbrella, color: '#0066CC', bg: '#EFF6FF', accent: '#DBEAFE', tier: 'standard' },
+  { id: 'pro', name: 'Heat Shield Pro', icon: Flame, color: '#D97706', bg: '#FFFBEB', accent: '#FEF3C7', tier: 'pro' },
 ];
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  basic:    ['Heat trigger protection', '₹300/day payout', 'Single zone coverage'],
+  basic: ['Heat trigger protection', '₹300/day payout', 'Single zone coverage'],
   standard: ['Heat + Rain triggers', '₹500/day payout', 'Multi-zone coverage'],
-  pro:      ['All weather triggers', '₹1000/day payout', 'Priority payouts'],
+  pro: ['All weather triggers', '₹1000/day payout', 'Priority payouts'],
 };
 
 const FALLBACK_PRICES: Record<string, number> = { basic: 95, standard: 143, pro: 218 };
@@ -31,8 +32,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Fetch live prices from the pricing engine
-    fetch('http://localhost:8080/api/v1/insurance/quote?riderId=1')
-      .then(res => res.json())
+    getQuote(1)
       .then(data => {
         const p: Record<string, number> = {};
         for (const [tier, detail] of Object.entries(data)) {
@@ -40,7 +40,7 @@ export default function HomeScreen() {
         }
         if (Object.keys(p).length > 0) setPrices(p);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -178,7 +178,7 @@ export default function HomeScreen() {
 }
 
 const PB_GREEN = '#00C37B';
-const PB_NAVY  = '#0F4C81';
+const PB_NAVY = '#0F4C81';
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },

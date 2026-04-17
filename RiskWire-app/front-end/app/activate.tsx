@@ -427,10 +427,10 @@ export default function ActivateScreen() {
               <View style={styles.infoCard}>
                 <Text style={styles.infoEmoji}>💡</Text>
                 {[
-                  '92+ plans found',
-                  '19 insurers',
-                  'Plans starting @270/month',
-                  `460+ cashless hospital network in ${city || 'your city'}`,
+                  '3 weather-triggered plans available',
+                  'Basic · Standard · Pro tiers',
+                  'Premiums starting ₹25/day',
+                  `Auto-payout to wallet in ${city || 'your city'}`,
                 ].map((line) => (
                   <View key={line} style={styles.infoCheckRow}>
                     <Check size={14} color="#00A25B" />

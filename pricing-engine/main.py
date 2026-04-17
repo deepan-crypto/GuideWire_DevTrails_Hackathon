@@ -10,7 +10,6 @@ app = FastAPI(title="RiskWire Pricing & Trigger Engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 OWM_KEY = os.getenv("OWM_API_KEY", "YOUR_OPENWEATHER_KEY")
-CPCB_KEY = os.getenv("CPCB_API_KEY", "")  # Central Pollution Control Board AQI
 
 # ── Ward-level zone registry (Item 10: hyper-local H3-style zone mapping) ──
 # Each zone ID maps to lat/lng centroid of the exact municipal ward

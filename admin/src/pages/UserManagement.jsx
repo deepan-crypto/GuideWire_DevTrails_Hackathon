@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Filter, Download, RefreshCw, Users, Shield, Clock, MapPin, ChevronDown, CheckCircle, AlertTriangle, Eye, Ban, RotateCcw, Loader2 } from 'lucide-react'
 import { fetchTriggerZones } from '../services/api'
 
-const BASE_URL = 'http://localhost:8080'
+const BASE_URL = (import.meta.env.VITE_API_URL || '/api/v1/admin').replace(/\/api\/v1\/admin$/, '')
 
 /* ── Helper components ─────────────────────────────────────────────────── */
 function TierBadge({ tier }) {
