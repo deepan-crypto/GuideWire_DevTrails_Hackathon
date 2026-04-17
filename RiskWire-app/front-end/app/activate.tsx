@@ -235,57 +235,43 @@ export default function ActivateScreen() {
 
                 {!paymentDone ? (
                   <>
-                    <Text style={styles.sectionLabel}>Select UPI App</Text>
-                    <View style={styles.upiGrid}>
-                      {MOCK_UPI_IDS.map((u) => (
-                        <TouchableOpacity
-                          key={u.id}
-                          style={[styles.upiCard, selectedUpi === u.id && styles.upiCardSel]}
-                          onPress={() => setSelectedUpi(u.id)}
-                        >
-                          <Text style={styles.upiEmoji}>{u.icon}</Text>
-                          <Text style={styles.upiName}>{u.name}</Text>
-                          <Text style={styles.upiId}>{u.upiId}</Text>
-                          {selectedUpi === u.id && (
-                            <View style={styles.upiCheck}><Check size={12} color="#00529B" /></View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                    <Text style={styles.sectionLabel}>Confirm Payment</Text>
+                    {selectedUpi && (
+                      <View style={styles.selectedUpiCard}>
+                        <Text style={styles.selectedUpiLabel}>Selected UPI App</Text>
+                        <Text style={styles.selectedUpiName}>{MOCK_UPI_IDS.find(u => u.id === selectedUpi)?.name}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.pinField}>
+                      <Smartphone size={16} color="#555" />
+                      <TextInput
+                        style={styles.pinInput}
+                        placeholder="Enter 4–6 digit UPI PIN"
+                        placeholderTextColor="#AAA"
+                        keyboardType="numeric"
+                        maxLength={6}
+                        secureTextEntry
+                        value={upiPin}
+                        onChangeText={setUpiPin}
+                      />
+                      {upiPin.length >= 4 && <Check size={16} color="#00A25B" />}
                     </View>
 
-                    {selectedUpi && (
-                      <>
-                        <View style={styles.pinField}>
-                          <Smartphone size={16} color="#555" />
-                          <TextInput
-                            style={styles.pinInput}
-                            placeholder="Enter 4–6 digit UPI PIN"
-                            placeholderTextColor="#AAA"
-                            keyboardType="numeric"
-                            maxLength={6}
-                            secureTextEntry
-                            value={upiPin}
-                            onChangeText={setUpiPin}
-                          />
-                          {upiPin.length >= 4 && <Check size={16} color="#00A25B" />}
+                    <TouchableOpacity
+                      style={[styles.payBtn, (paymentLoading || upiPin.length < 4) && styles.payBtnDisabled]}
+                      onPress={handleMockPayment}
+                      disabled={paymentLoading || upiPin.length < 4}
+                    >
+                      {paymentLoading ? (
+                        <View style={styles.payBtnInner}>
+                          <ActivityIndicator color="#FFF" size="small" />
+                          <Text style={styles.payBtnText}>Processing payment…</Text>
                         </View>
-
-                        <TouchableOpacity
-                          style={[styles.payBtn, (paymentLoading || upiPin.length < 4) && styles.payBtnDisabled]}
-                          onPress={handleMockPayment}
-                          disabled={paymentLoading || upiPin.length < 4}
-                        >
-              {paymentLoading ? (
-                            <View style={styles.payBtnInner}>
-                              <ActivityIndicator color="#FFF" size="small" />
-                              <Text style={styles.payBtnText}>Processing payment…</Text>
-                            </View>
-                          ) : (
-                            <Text style={styles.payBtnText}>Pay ₹{premium} & Activate →</Text>
-                          )}
-                        </TouchableOpacity>
-                      </>
-                    )}
+                      ) : (
+                        <Text style={styles.payBtnText}>Pay ₹{premium} & Activate →</Text>
+                      )}
+                    </TouchableOpacity>
                   </>
                 ) : (
                   <View style={styles.paySuccessBox}>
@@ -329,45 +315,34 @@ export default function ActivateScreen() {
             {step === 1 && (
               <View style={styles.infoCard}>
                 <View style={styles.infoIcon}>
-                  <Text style={styles.infoIconText}>🏷️</Text>
-                  <Text style={styles.infoBadge}>BEST{'\n'}PRICE</Text>
+                  <Text style={styles.infoIconText}>👤</Text>
                 </View>
-                <Text style={styles.infoCardTitle}>Get best pricing</Text>
+                <Text style={styles.infoCardTitle}>Your Details</Text>
                 <Text style={styles.infoCardDesc}>
-                  This will help us in calculating your premium &amp; discounts
+                  We need your name and phone number to activate your policy and process payouts
                 </Text>
               </View>
             )}
 
             {step === 2 && (
               <View style={styles.infoCard}>
-                <Text style={styles.infoEmoji}>🏥</Text>
+                <Shield size={28} color="#00A25B" />
+                <Text style={styles.infoCardTitle}>Auto-Payment Setup</Text>
                 <Text style={styles.infoCardDesc}>
-                  This will help us find the network of{' '}
-                  <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>Cashless Hospitals</Text>{' '}
-                  in your city
+                  Set up automatic monthly deductions from your UPI. Manage payments anytime from your app.
                 </Text>
+                <View style={styles.infoCheckRow}>
+                  <Check size={14} color="#00A25B" />
+                  <Text style={styles.infoCheckText}>Secure & Fast</Text>
+                </View>
+                <View style={styles.infoCheckRow}>
+                  <Check size={14} color="#00A25B" />
+                  <Text style={styles.infoCheckText}>Cancel anytime</Text>
+                </View>
               </View>
             )}
 
             {step === 3 && (
-              <View style={styles.infoCard}>
-                <Text style={styles.infoEmoji}>💡</Text>
-                {[
-                  '3 weather-triggered plans available',
-                  'Basic · Standard · Pro tiers',
-                  'Premiums starting ₹25/day',
-                  `Auto-payout to wallet in ${city || 'your city'}`,
-                ].map((line) => (
-                  <View key={line} style={styles.infoCheckRow}>
-                    <Check size={14} color="#00A25B" />
-                    <Text style={styles.infoCheckText}>{line}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {step === 4 && (
               <View style={styles.infoCard}>
                 <Shield size={28} color="#00529B" />
                 <Text style={styles.infoCardTitle}>Secured Payment</Text>
@@ -377,10 +352,6 @@ export default function ActivateScreen() {
                 <View style={styles.infoCheckRow}>
                   <Check size={14} color="#00A25B" />
                   <Text style={styles.infoCheckText}>No hidden charges</Text>
-                </View>
-                <View style={styles.infoCheckRow}>
-                  <Check size={14} color="#00A25B" />
-                  <Text style={styles.infoCheckText}>Cancel anytime</Text>
                 </View>
                 <View style={styles.infoCheckRow}>
                   <Check size={14} color="#00A25B" />
@@ -544,6 +515,12 @@ const styles = StyleSheet.create({
   upiName: { fontSize: 11, fontWeight: '700', color: '#1A1A2E' },
   upiId: { fontSize: 9, color: '#888', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
   upiCheck: { position: 'absolute', top: 6, right: 6 },
+  selectedUpiCard: {
+    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: BRAND_BLUE, marginBottom: 14,
+  },
+  selectedUpiLabel: { fontSize: 11, color: '#4B6B88', fontWeight: '600', marginBottom: 4 },
+  selectedUpiName: { fontSize: 15, fontWeight: '700', color: BRAND_BLUE },
   pinField: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#FFF', borderWidth: 1, borderColor: BORDER, borderRadius: 10,
