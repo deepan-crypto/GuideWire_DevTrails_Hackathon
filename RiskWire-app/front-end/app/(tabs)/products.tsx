@@ -1,35 +1,80 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Shield, Check, ChevronRight, Phone, Star } from 'lucide-react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Shield, Check, ChevronRight, Phone, Star, Zap } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { getDynamicPricing } from '@/utils/api';
+import { setIntroSeen } from '@/utils/onboardingState';
 
-const PB_GREEN  = '#00C37B';
-const PB_NAVY   = '#0F4C81';
+const PB_GREEN = '#00C37B';
+const PB_NAVY = '#0F4C81';
 const PB_ORANGE = '#FF5722';
 
-const PLANS = [
-  {
-    id: 'basic', name: 'Basic', tagline: 'Essential cover for everyday risk',
+const PLAN_META: Record<string, {
+  name: string; tagline: string; color: string; bgColor: string; borderColor: string;
+  features: string[]; popular?: boolean;
+}> = {
+  basic: {
+    name: 'Basic', tagline: 'Essential cover for everyday risk',
     color: '#4CAF50', bgColor: '#F1FFF4', borderColor: '#A5D6A7',
-    avgClaim: '₹25', perDay: '₹300',
-    features: ['₹300 daily income cover', '₹25 avg claim payout', 'Accident & injury cover', '24/7 claim support'],
+    features: ['Heat trigger protection', 'Single zone coverage', 'Instant payouts', '24/7 claim support'],
   },
-  {
-    id: 'standard', name: 'Standard', tagline: 'Balanced protection for working riders',
+  standard: {
+    name: 'Standard', tagline: 'Balanced protection for working riders',
     color: '#0066CC', bgColor: '#EFF6FF', borderColor: '#93C5FD',
-    popular: true, avgClaim: '₹50', perDay: '₹500',
-    features: ['₹500 daily income cover', '₹50 avg claim payout', 'Accident, injury & illness', 'Priority claim handling', 'Hospitalization benefit'],
+    popular: true,
+    features: ['Heat + Rain triggers', 'Multi-zone coverage', 'Priority claim handling', 'Hospitalization benefit'],
   },
-  {
-    id: 'pro', name: 'Pro', tagline: 'Maximum protection, maximum peace of mind',
+  pro: {
+    name: 'Pro', tagline: 'Maximum protection, maximum peace of mind',
     color: '#7B2FF7', bgColor: '#F5F0FF', borderColor: '#C4B5FD',
-    avgClaim: '₹100', perDay: '₹1,000',
-    features: ['₹1,000 daily income cover', '₹100 avg claim payout', 'Comprehensive coverage', 'Dedicated claims manager', 'Family accident benefit', 'Zero waiting period'],
+    features: ['All weather triggers', 'Emergency assistance', 'Comprehensive coverage', 'Family accident benefit', 'Zero waiting period'],
   },
-];
+};
 
 export default function ProductsScreen() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [payouts, setPayouts] = useState<Record<string, number>>({});
+  const [riskMultiplier, setRiskMultiplier] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
+
+  useEffect(() => {
+    getDynamicPricing('MZ-DEL-04')
+      .then(data => {
+        if (data.plans) {
+          const p: Record<string, number> = {};
+          const po: Record<string, number> = {};
+          for (const [tier, detail] of Object.entries(data.plans)) {
+            p[tier] = (detail as any).premium;
+            po[tier] = (detail as any).daily_payout;
+          }
+          setPrices(p);
+          setPayouts(po);
+        }
+        if (data.risk_multiplier) setRiskMultiplier(data.risk_multiplier);
+      })
+      .catch(err => {
+        console.warn('Oracle pricing fetch failed, using fallbacks:', err);
+        setPrices({ basic: 25, standard: 50, pro: 100 });
+        setPayouts({ basic: 300, standard: 500, pro: 1000 });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleGetPlan = async (tier: string) => {
+    try {
+      setTransitioning(true);
+      await setIntroSeen();
+      // Route to onboarding with selected plan tier — gig worker verification first
+      router.push({ pathname: '/onboarding', params: { selectedTier: tier } } as any);
+    } catch (err) {
+      console.error('Failed to navigate:', err);
+      setTransitioning(false);
+    }
+  };
+
+  const tiers = ['basic', 'standard', 'pro'];
 
   return (
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
@@ -60,95 +105,128 @@ export default function ProductsScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Compare strip */}
-        <View style={styles.compareHeader}>
-          <Text style={[styles.compareCell, { flex: 2 }]}>Plan</Text>
-          <Text style={[styles.compareCell, { flex: 1, textAlign: 'center' }]}>Avg Claim</Text>
-          <Text style={[styles.compareCell, { flex: 1, textAlign: 'center' }]}>Per Day</Text>
+        {/* Risk multiplier banner */}
+        <View style={styles.riskBanner}>
+          <Zap size={14} color="#FFF" />
+          <Text style={styles.riskBannerText}>
+            Live Risk Multiplier: {riskMultiplier}x · ML-powered pricing
+          </Text>
         </View>
-        {PLANS.map(p => (
-          <View key={p.id} style={[styles.compareRow, selected === p.id && { backgroundColor: p.bgColor }]}>
-            <Text style={[styles.compareName, { flex: 2, color: p.color }]}>{p.name}</Text>
-            <Text style={[styles.compareVal, { flex: 1, textAlign: 'center' }]}>{p.avgClaim}</Text>
-            <Text style={[styles.compareVal, { flex: 1, textAlign: 'center' }]}>{p.perDay}</Text>
+
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#0066CC" />
+            <Text style={styles.loadingText}>Fetching live prices from ML engine…</Text>
           </View>
-        ))}
-
-        <Text style={styles.sectionTitle}>Select Your Plan</Text>
-
-        {PLANS.map(plan => (
-          <TouchableOpacity
-            key={plan.id}
-            style={[
-              styles.planCard,
-              { borderColor: selected === plan.id ? plan.color : plan.borderColor },
-              selected === plan.id && { backgroundColor: plan.bgColor },
-            ]}
-            onPress={() => setSelected(plan.id)}
-            activeOpacity={0.85}
-          >
-            {plan.popular && (
-              <View style={[styles.popularBadge, { backgroundColor: PB_ORANGE }]}>
-                <Text style={styles.popularText}>⭐ Most Popular</Text>
-              </View>
-            )}
-
-            <View style={styles.planHeader}>
-              <View style={[styles.planIconBox, { backgroundColor: plan.bgColor, borderColor: plan.borderColor }]}>
-                <Shield size={22} color={plan.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.planName, { color: plan.color }]}>{plan.name}</Text>
-                <Text style={styles.planTagline}>{plan.tagline}</Text>
-              </View>
-              <View style={[styles.radio, selected === plan.id && { borderColor: plan.color }]}>
-                {selected === plan.id && <View style={[styles.radioDot, { backgroundColor: plan.color }]} />}
-              </View>
+        ) : (
+          <>
+            {/* Compare strip */}
+            <View style={styles.compareHeader}>
+              <Text style={[styles.compareCell, { flex: 2 }]}>Plan</Text>
+              <Text style={[styles.compareCell, { flex: 1, textAlign: 'center' }]}>Premium</Text>
+              <Text style={[styles.compareCell, { flex: 1, textAlign: 'center' }]}>Payout</Text>
             </View>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={[styles.statVal, { color: plan.color }]}>{plan.avgClaim}</Text>
-                <Text style={styles.statLbl}>Avg Claim</Text>
+            {tiers.map(tier => (
+              <View key={tier} style={[styles.compareRow, selected === tier && { backgroundColor: PLAN_META[tier].bgColor }]}>
+                <Text style={[styles.compareName, { flex: 2, color: PLAN_META[tier].color }]}>{PLAN_META[tier].name}</Text>
+                <Text style={[styles.compareVal, { flex: 1, textAlign: 'center' }]}>₹{(prices[tier] || 0).toFixed(0)}/day</Text>
+                <Text style={[styles.compareVal, { flex: 1, textAlign: 'center' }]}>₹{payouts[tier] || 0}/day</Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={[styles.statVal, { color: plan.color }]}>{plan.perDay}</Text>
-                <Text style={styles.statLbl}>Per Day</Text>
-              </View>
-            </View>
+            ))}
 
-            <View style={styles.featuresList}>
-              {plan.features.map(f => (
-                <View key={f} style={styles.featureRow}>
-                  <Check size={13} color={PB_GREEN} />
-                  <Text style={styles.featureText}>{f}</Text>
-                </View>
-              ))}
-            </View>
-          </TouchableOpacity>
-        ))}
+            <Text style={styles.sectionTitle}>Select Your Plan</Text>
+
+            {tiers.map(tier => {
+              const plan = PLAN_META[tier];
+              return (
+                <TouchableOpacity
+                  key={tier}
+                  style={[
+                    styles.planCard,
+                    { borderColor: selected === tier ? plan.color : plan.borderColor },
+                    selected === tier && { backgroundColor: plan.bgColor },
+                  ]}
+                  onPress={() => setSelected(tier)}
+                  activeOpacity={0.85}
+                >
+                  {plan.popular && (
+                    <View style={[styles.popularBadge, { backgroundColor: PB_ORANGE }]}>
+                      <Text style={styles.popularText}>⭐ Most Popular</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.planHeader}>
+                    <View style={[styles.planIconBox, { backgroundColor: plan.bgColor, borderColor: plan.borderColor }]}>
+                      <Shield size={22} color={plan.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.planName, { color: plan.color }]}>{plan.name}</Text>
+                      <Text style={styles.planTagline}>{plan.tagline}</Text>
+                    </View>
+                    <View style={[styles.radio, selected === tier && { borderColor: plan.color }]}>
+                      {selected === tier && <View style={[styles.radioDot, { backgroundColor: plan.color }]} />}
+                    </View>
+                  </View>
+
+                  <View style={styles.statsRow}>
+                    <View style={styles.statBox}>
+                      <Text style={[styles.statVal, { color: plan.color }]}>₹{(prices[tier] || 0).toFixed(0)}</Text>
+                      <Text style={styles.statLbl}>Premium/day</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                      <Text style={[styles.statVal, { color: plan.color }]}>₹{payouts[tier] || 0}</Text>
+                      <Text style={styles.statLbl}>Payout/day</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featuresList}>
+                    {plan.features.map(f => (
+                      <View key={f} style={styles.featureRow}>
+                        <Check size={13} color={PB_GREEN} />
+                        <Text style={styles.featureText}>{f}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
 
         {/* Trust strip */}
         <View style={styles.trustStrip}>
-          {[1,2,3,4].map(s => <Star key={s} size={14} color="#F59E0B" fill="#F59E0B"/>)}
-          <Star size={14} color="#F59E0B" fill="none"/>
+          {[1, 2, 3, 4].map(s => <Star key={s} size={14} color="#F59E0B" fill="#F59E0B" />)}
+          <Star size={14} color="#F59E0B" fill="none" />
           <Text style={styles.trustText}>  13.2 crore customers · 53 insurance partners</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.buyBtn, !selected && styles.buyBtnDisabled]}
-          disabled={!selected}
+          style={[styles.buyBtn, (!selected || transitioning) && styles.buyBtnDisabled]}
+          disabled={!selected || transitioning}
           onPress={() => {
-            const plan = PLANS.find(p => p.id === selected);
-            if (plan) router.push({ pathname: '/activate', params: { plan: plan.name } });
+            if (selected) handleGetPlan(selected);
           }}
         >
-          <Text style={styles.buyBtnText}>
-            {selected ? `Get ${PLANS.find(p => p.id === selected)?.name} Plan ›` : 'Select a Plan to Continue'}
-          </Text>
-          {selected && <ChevronRight size={18} color="#FFF" />}
+          {transitioning ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <>
+              <Text style={styles.buyBtnText}>
+                {selected ? `Get ${PLAN_META[selected]?.name} Plan ›` : 'Select a Plan to Continue'}
+              </Text>
+              {selected && <ChevronRight size={18} color="#FFF" />}
+            </>
+          )}
         </TouchableOpacity>
+
+        {/* ML Info */}
+        <View style={styles.mlInfo}>
+          <Shield size={14} color="#00529B" />
+          <Text style={styles.mlInfoText}>
+            Premiums dynamically computed by ML model · Weather + AQI data · Guidewire Cloud
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -181,6 +259,15 @@ const styles = StyleSheet.create({
   heroDesc: { fontSize: 13, color: '#666', lineHeight: 20 },
 
   content: { padding: 20 },
+
+  riskBanner: {
+    backgroundColor: '#0066CC', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16,
+  },
+  riskBannerText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+
+  loadingBox: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { fontSize: 13, color: '#666' },
 
   compareHeader: {
     flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4,
@@ -219,8 +306,14 @@ const styles = StyleSheet.create({
 
   buyBtn: {
     backgroundColor: PB_ORANGE, borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 40,
+    alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16,
   },
   buyBtnDisabled: { backgroundColor: '#FECACA' },
   buyBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+
+  mlInfo: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginBottom: 40,
+  },
+  mlInfoText: { fontSize: 10, color: '#4B6B88', flex: 1, lineHeight: 16 },
 });
