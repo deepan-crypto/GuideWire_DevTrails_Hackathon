@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const axios = require('axios');
-const { Rider, PayoutLog, Claim, FraudLog } = require('../models');
+const { Rider, PayoutLog, Claim, FraudLog, Notification } = require('../models');
 const { isMarketCrashActive, setMarketCrashState } = require('./insuranceService');
 
 const ORACLE_BASE_URL = process.env.ORACLE_BASE_URL;
@@ -139,6 +139,20 @@ async function runActuarialEngine() {
           amount,
           zone,
           approved_at: now.toISOString(),
+        });
+
+        // Create notification for rider
+        await Notification.create({
+          rider_id: rider._id,
+          type: 'WEATHER_PAYOUT',
+          title: '🌧️ Weather Alert Payout!',
+          message: `You received ₹${amount} payout due to bad weather in your zone`,
+          amount,
+          trigger_type: 'WEATHER',
+          claim_number: claimNumber,
+          zone,
+          is_read: false,
+          created_at: now,
         });
       }
     } catch (e) {

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Rider, Policy, Claim, PayoutLog, BillingTransaction, FraudLog } = require('../models');
+const { Rider, Policy, Claim, PayoutLog, BillingTransaction, FraudLog, Notification } = require('../models');
 
 const ORACLE_BASE_URL = process.env.ORACLE_BASE_URL;
 
@@ -85,6 +85,20 @@ async function payManualClaim(riderId) {
     approved_at: now.toISOString(),
   });
 
+  // Create notification for rider
+  await Notification.create({
+    rider_id: rider._id,
+    type: 'WEATHER_PAYOUT',
+    title: '💰 Admin Payout Approved!',
+    message: `You received ₹${amount} payout approved by admin`,
+    amount,
+    trigger_type: 'MANUAL_ADMIN',
+    claim_number: claimNumber,
+    zone: rider.zone,
+    is_read: false,
+    created_at: now,
+  });
+
   return { success: true, amount, claimNumber };
 }
 
@@ -135,6 +149,20 @@ async function triggerManualClaim(zoneId, triggerType, amount) {
       amount,
       zone: zoneId,
       approved_at: now.toISOString(),
+    });
+
+    // Create notification for rider
+    await Notification.create({
+      rider_id: rider._id,
+      type: 'WEATHER_PAYOUT',
+      title: '⚠️ Weather Alert - Payout Sent!',
+      message: `Bad weather in ${zoneId}. You received ₹${amount} payout!`,
+      amount,
+      trigger_type: normalizedTrigger,
+      claim_number: claimNumber,
+      zone: zoneId,
+      is_read: false,
+      created_at: now,
     });
 
     created++;
